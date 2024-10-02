@@ -122,6 +122,10 @@ namespace Microsoft.Health.Fhir.Web
             {
                 fhirServerBuilder.AddCosmosDb();
             }
+            else if (runtimeConfiguration is MongoDbRuntimeConfiguration)
+            {
+                fhirServerBuilder.AddMongoDb();
+            }
             else if (runtimeConfiguration is AzureHealthDataServicesRuntimeConfiguration)
             {
                 fhirServerBuilder.AddSqlServer(config =>
@@ -144,6 +148,10 @@ namespace Microsoft.Health.Fhir.Web
             else if (KnownDataStores.IsSqlServerDataStore(dataStore))
             {
                 runtimeConfiguration = new AzureHealthDataServicesRuntimeConfiguration();
+            }
+            else if (KnownDataStores.IsMongoDbDataStore(dataStore))
+            {
+                runtimeConfiguration = new MongoDbRuntimeConfiguration();
             }
             else
             {
