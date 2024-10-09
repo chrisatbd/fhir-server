@@ -298,3 +298,5 @@ __*
 
 # For our Mac friends
 .DS_Store
+
+*.user.md

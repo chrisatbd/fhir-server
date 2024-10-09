@@ -35,7 +35,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
     internal class FhirMongoSearchService : SearchService
     {
         // private static readonly SearchParameterInfo _wildcardReferenceSearchParameter = new(SearchValueConstants.WildcardReferenceSearchParameterName, SearchValueConstants.WildcardReferenceSearchParameterName);
-        // private readonly Lazy<IReadOnlyCollection<IExpressionVisitorWithInitialContext<object, Expression>>> _expressionRewriters;
 
         private readonly MongoFhirDataStore _fhirDataStore;
         private readonly IQueryBuilder _queryBuilder;
@@ -63,16 +62,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             _queryBuilder = queryBuilder;
             _logger = logger;
             _dataStoreConfiguration = dataStoreConfiguration;
-
-            /*
-            _expressionRewriters = new Lazy<IReadOnlyCollection<IExpressionVisitorWithInitialContext<object, Expression>>>(() =>
-                new IExpressionVisitorWithInitialContext<object, Expression>[]
-                {
-                    compartmentSearchRewriter,
-                  smartCompartmentSearchRewriter,
-                    DateTimeEqualityRewriter.Instance,
-                });
-            */
         }
 
         public override Task<IReadOnlyList<string>> GetUsedResourceTypes(CancellationToken cancellationToken)
@@ -81,29 +70,19 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             throw new NotImplementedException();
         }
 
-        public override async Task<SearchResult> SearchAsync(SearchOptions searchOptions, CancellationToken cancellationToken)
+        private async Task<SearchResult> SearchImpl(SearchOptions searchOptions, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("SearchAsync");
-
-            // we're going to mutate searchOptions, so clone it first so the caller of this method does not see the changes.
-            searchOptions = searchOptions.Clone();
-
-            if (searchOptions.Expression != null)
-            {
-                // Apply Mongo specific expression rewriters
-                // searchOptions.Expression = _expressionRewriters.Value
-                //    .Aggregate(searchOptions.Expression, (e, rewriter) => e.AcceptVisitor(rewriter));
-            }
+            _logger.LogInformation("SearchImpl");
 
             var filter = _queryBuilder.BuildSqlQuerySpec(searchOptions);
 
-            var document = await _dataStoreConfiguration.GetCollection("patient")
+            var documents = await _dataStoreConfiguration.GetCollection()
                 .Find(filter)
                 .ToListAsync(cancellationToken);
 
             List<SearchResultEntry> resultEntries = new List<SearchResultEntry>();
 
-            foreach (var entry in document)
+            foreach (var entry in documents)
             {
                 var version = 1;
                 var isDeleted = false;
@@ -140,6 +119,15 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 null,
                 null,
                 new System.Collections.Generic.List<Tuple<string, string>>());
+        }
+
+        public override async Task<SearchResult> SearchAsync(SearchOptions searchOptions, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("SearchAsync");
+
+            SearchResult searchResult = await SearchImpl(searchOptions, cancellationToken);
+
+            return searchResult;
         }
 
         protected override Task<SearchResult> SearchForReindexInternalAsync(SearchOptions searchOptions, string searchParameterHash, CancellationToken cancellationToken)

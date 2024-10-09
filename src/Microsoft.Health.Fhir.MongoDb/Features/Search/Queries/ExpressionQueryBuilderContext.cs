@@ -4,27 +4,22 @@
 // -------------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using Newtonsoft.Json.Linq;
+using MongoDB.Driver;
 
-namespace Microsoft.Health.Fhir.MongoDb.Extensions
+namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
-    internal static class BsonDocumentExtensions
+    internal sealed class ExpressionQueryBuilderContext
     {
-        // this needs some work but is a start.
-        public static JObject ToJObject(this BsonDocument document)
+        public ExpressionQueryBuilderContext()
         {
-            return JObject.Parse(document.ToJson());
         }
 
-        public static JToken ToJToken(this BsonDocument document)
-        {
-            return JToken.Parse(document.ToJson());
-        }
+        public FilterDefinitionBuilder<BsonDocument> Builder { get; private set; } = Builders<BsonDocument>.Filter;
+
+        public FilterDefinition<BsonDocument>? Filter { get; set; }
     }
 }

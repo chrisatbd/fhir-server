@@ -15,35 +15,12 @@ using Microsoft.Health.Fhir.Core.Features.Persistence;
 using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.Core.Features.Search.Expressions;
 using Microsoft.Health.Fhir.MongoDb.Features.Queries;
+using MongoDB.Bson;
+using MongoDB.Driver;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
-#pragma warning disable SA1649 // File name should match first type name
-    internal struct ExpressionQueryBuilderContext
-#pragma warning restore SA1649 // File name should match first type name
-    {
-        public ExpressionQueryBuilderContext(string instanceVariableName, Func<FieldName, int?, string> fieldNameOverride)
-        {
-            InstanceVariableName = instanceVariableName;
-            FieldNameOverride = fieldNameOverride;
-        }
-
-        public string InstanceVariableName { get; }
-
-        public Func<FieldName, int?, string> FieldNameOverride { get; }
-
-        public ExpressionQueryBuilderContext WithInstanceVariableName(string instanceVariableName)
-        {
-            return new ExpressionQueryBuilderContext(instanceVariableName: instanceVariableName, fieldNameOverride: FieldNameOverride);
-        }
-
-        public ExpressionQueryBuilderContext WithFieldNameOverride(Func<FieldName, int?, string> fieldNameOverride)
-        {
-            return new ExpressionQueryBuilderContext(instanceVariableName: InstanceVariableName, fieldNameOverride: fieldNameOverride);
-        }
-    }
-
-    internal sealed class ExpressionQueryBuilder : IExpressionVisitorWithInitialContext<object, Expression>
+    internal sealed class ExpressionQueryBuilder : IExpressionVisitorWithInitialContext<ExpressionQueryBuilderContext, Expression>
     {
         private readonly StringBuilder _queryBuilder;
         private readonly QueryParameterManager _queryParameterManager;
@@ -60,58 +37,55 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         }
 
 #pragma warning disable CS8603 // Possible null reference return.
-        public object InitialContext => null;
+        public ExpressionQueryBuilderContext InitialContext => new ExpressionQueryBuilderContext();
 #pragma warning restore CS8603 // Possible null reference return.
 
-        public Expression VisitBinary(BinaryExpression expression, object context)
+        public Expression VisitBinary(BinaryExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitChained(ChainedExpression expression, object context)
+        public Expression VisitChained(ChainedExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitCompartment(CompartmentSearchExpression expression, object context)
+        public Expression VisitCompartment(CompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitIn<T>(InExpression<T> expression, object context)
+        public Expression VisitIn<T>(InExpression<T> expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitInclude(IncludeExpression expression, object context)
+        public Expression VisitInclude(IncludeExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitMissingField(MissingFieldExpression expression, object context)
+        public Expression VisitMissingField(MissingFieldExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitMissingSearchParameter(MissingSearchParameterExpression expression, object context)
+        public Expression VisitMissingSearchParameter(MissingSearchParameterExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitMultiary(MultiaryExpression expression, object context)
+        public Expression VisitMultiary(MultiaryExpression expression, ExpressionQueryBuilderContext context)
         {
             MultiaryOperator op = expression.MultiaryOperation;
             IReadOnlyList<Expression> expressions = expression.Expressions;
-            string operation;
 
             switch (op)
             {
                 case MultiaryOperator.And:
-                    operation = "AND";
                     break;
 
                 case MultiaryOperator.Or:
-                    operation = "OR";
                     break;
 
                 default:
@@ -134,35 +108,23 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             {
                 // Output each expression.
                 expressions[i].AcceptVisitor(this, context);
-
-                if (i != expressions.Count - 1)
-                {
-                    if (!char.IsWhiteSpace(_queryBuilder[_queryBuilder.Length - 1]))
-                    {
-                        _queryBuilder.Append(' ');
-                    }
-
-                    _queryBuilder.Append(operation).Append(' ');
-                }
             }
 #pragma warning disable CS8603
             return null;
 #pragma warning restore CS8603
         }
 
-        public Expression VisitNotExpression(NotExpression expression, object context)
+        public Expression VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitSearchParameter(SearchParameterExpression expression, object context)
+        public Expression VisitSearchParameter(SearchParameterExpression expression, ExpressionQueryBuilderContext context)
         {
             switch (expression.Parameter.Code)
             {
                 case SearchParameterNames.ResourceType:
-                    // We do not currently support specifying the system for the _type parameter value.
-                    // We would need to add it to the document, but for now it seems pretty unlikely that it will
-                    // be specified when searching.
+                    context.Filter = context.Builder.Eq("resource.resourceType", "Patient");
 
                     // expression.Expression.AcceptVisitor(this, context.WithFieldNameOverride((n, i) => SearchValueConstants.RootResourceTypeName));
 
@@ -182,18 +144,16 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 case SearchValueConstants.WildcardReferenceSearchParameterName:
                     // This is an internal search parameter that that matches any reference search parameter.
                     // It is used for wildcard revinclude queries
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-                    AppendSubquery(parameterName: null, expression.Expression, context);
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
-                    break;
+                    //                     AppendSubquery(null, context);
+                    throw new NotImplementedException();
                 default:
                     if (expression.Expression is NotExpression notExpression)
                     {
-                        AppendSubquery(expression.Parameter.Code, notExpression.Expression, context, true);
+                        AppendSubquery(expression, context, true);
                     }
                     else
                     {
-                        AppendSubquery(expression.Parameter.Code, expression.Expression, context);
+                        AppendSubquery(expression, context);
                     }
 
                     break;
@@ -204,61 +164,90 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 #pragma warning restore CS8603
         }
 
-        private void AppendSubquery(string parameterName, Expression expression, object context, bool negate = false)
+        private void AppendSubquery(SearchParameterExpression expression, ExpressionQueryBuilderContext context, bool negate = false)
         {
-            if (negate)
+            var t = _queryParameterManager;
+
+            if (expression.Expression != null)
             {
-                _queryBuilder.Append("NOT ");
+                context.Filter = context.Filter & context.Builder.Eq("searchIndexes.SearchParameter.Code", expression.Parameter.Code);
+                expression.Expression.AcceptVisitor(this, context);
             }
 
-            _queryBuilder.Append("EXISTS (SELECT VALUE ")
-                .Append(SearchValueConstants.SearchIndexAliasName)
-                .Append(" FROM ")
-                .Append(SearchValueConstants.SearchIndexAliasName)
-                .Append(" IN ")
-#pragma warning disable CA1834 // Consider using 'StringBuilder.Append(char)' when applicable
-                .Append(SearchValueConstants.RootAliasName)
-#pragma warning restore CA1834 // Consider using 'StringBuilder.Append(char)' when applicable
-                .Append('.')
-                .Append(KnownResourceWrapperProperties.SearchIndices)
-                .Append(" WHERE ");
-
-            // context = context.WithInstanceVariableName(SearchValueConstants.SearchIndexAliasName);
-
-            if (parameterName != null)
-            {
-                // VisitBinary(GetMappedValue(FieldNameMapping, FieldName.ParamName), BinaryOperator.Equal, parameterName, context);
-            }
-
-            if (expression != null)
-            {
-                if (parameterName != null)
-                {
-                    _queryBuilder.Append(" AND ");
-                }
-
-                expression.AcceptVisitor(this, context);
-            }
-
-            _queryBuilder.Append(')');
+            /*
+                        if (expression != null)
+                        {
+                            expression.AcceptVisitor(this, context);
+                            context.Filter = context.Filter & context.Builder.Eq("searchIndexes.SearchParameter.Code", expression.Parameter.Code);
+            #pragma warning disable CS8602 // Dereference of a possibly null reference.
+                            context.Filter = context.Filter & context.Builder.Eq("searchIndexes.Value.String", (expression.Expression as StringExpression).Value);
+            #pragma warning restore CS8602 // Dereference of a possibly null reference.
+                        }
+            */
         }
 
-        public Expression VisitSmartCompartment(SmartCompartmentSearchExpression expression, object context)
+        public Expression VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitSortParameter(SortExpression expression, object context)
+        public Expression VisitSortParameter(SortExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public Expression VisitString(StringExpression expression, object context)
+        public Expression VisitString(StringExpression expression, ExpressionQueryBuilderContext context)
         {
-            throw new NotImplementedException();
+            if (expression.StringOperator == StringOperator.StartsWith)
+            {
+                context.Filter = context.Filter & context.Builder.Regex("searchIndexes.Value.String", "^" + expression.Value + ".*");
+            }
+            else if (expression.StringOperator == StringOperator.Equals)
+            {
+                context.Filter = context.Filter & context.Builder.Eq("searchIndexes.Value.String", expression.Value);
+            }
+            else if (expression.StringOperator == StringOperator.Contains)
+            {
+                context.Filter = context.Filter & context.Builder.Regex("searchIndexes.Value.String", expression.Value);
+            }
+            else
+            {
+                context.Filter = context.Filter & context.Builder.Eq("searchIndexes.Value.String", expression.Value);
+            }
+
+#pragma warning disable CS8603
+            return null;
+#pragma warning restore CS8603
+
+/*
+            string fieldName = expression.FieldName.ToString();
+
+            if (expression.IgnoreCase)
+            {
+                fieldName = SearchValueConstants.NormalizedPrefix + fieldName;
+            }
+
+            string value = expression.IgnoreCase ? expression.Value.ToUpperInvariant() : expression.Value;
+
+            if (expression.StringOperator == StringOperator.Equals)
+            {
+            }
+            else if (expression.StringOperator == StringOperator.LeftSideStartsWith)
+            {
+            }
+            else
+            {
+            }
+
+
+#pragma warning disable CS8603
+            return null;
+#pragma warning restore CS8603
+
+            */
         }
 
-        public Expression VisitUnion(UnionExpression expression, object context)
+        public Expression VisitUnion(UnionExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }

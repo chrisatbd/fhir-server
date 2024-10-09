@@ -3,6 +3,7 @@
 // Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 // -------------------------------------------------------------------------------------------------
 
+using System.Collections;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -10,15 +11,25 @@ namespace Microsoft.Health.Fhir.MongoDb.Configs
 {
     public class MongoDataStoreConfiguration
     {
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public string ConnectionString { get; set; }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public string? ConnectionString { get; set; }
 
-        public IMongoCollection<BsonDocument> GetCollection(string resourceTypeName)
+        public IMongoCollection<BsonDocument> GetCollection(string? resourceTypeName = null)
         {
-            string collectionName = resourceTypeName;
+            /*
+             * TODOCJH:  The idea here is that we could support different collections for different
+             * resource types, but for now we are putting everything into one.  At some point we could also
+             * use this as a base for partitioning, etc.
+             */
 
-            collectionName = "resource";
+            string collectionName = "resource";
+
+            if (resourceTypeName != null)
+            {
+                // forced on purpose, see above.
+
+                collectionName = resourceTypeName;
+                collectionName = "resource";
+            }
 
             var connectionString = ConnectionString;
 

@@ -11,6 +11,7 @@ using EnsureThat;
 using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.MongoDb.Features.Queries;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
@@ -39,20 +40,19 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 _queryBuilder,
                 _queryParameterManager);
 
+            ExpressionQueryBuilderContext ctx = new ExpressionQueryBuilderContext();
+
             if (searchOptions.Expression != null)
             {
                 _queryBuilder.Append("AND ");
 #pragma warning disable CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
-                searchOptions.Expression.AcceptVisitor(expressionQueryBuilder, null);
+                searchOptions.Expression.AcceptVisitor(expressionQueryBuilder, ctx);
 #pragma warning restore CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
-
-                // var highExamScoreFilter = Builders<BsonDocument>.Filter.ElemMatch<BsonValue>(
-                // "scores", new BsonDocument { { "type", "exam" },
-                // { "score", new BsonDocument { { "$gte", 95 } } }
-                // });
             }
 
-            return Builders<BsonDocument>.Filter.Eq("resource.resourceType", "Patient");
+#pragma warning disable CS8603 // Possible null reference return.
+            return ctx.Filter;
+#pragma warning restore CS8603 // Possible null reference return.
         }
 
         public FilterDefinition<BsonDocument> GenerateReindexSql(SearchOptions searchOptions, string searchParameterHash)

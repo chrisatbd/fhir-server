@@ -21,6 +21,7 @@ using Microsoft.Health.Fhir.Core.Features.Conformance;
 using Microsoft.Health.Fhir.Core.Features.Context;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
 using Microsoft.Health.Fhir.Core.Features.Persistence.Orchestration;
+using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.Core.Models;
 using Microsoft.Health.Fhir.MongoDb.Configs;
 using Microsoft.Health.Fhir.MongoDb.Extensions;
@@ -81,6 +82,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             throw new NotImplementedException();
         }
 
+        // Gets a list of of FHIR Resources by keys
         public async Task<IReadOnlyList<ResourceWrapper>> GetAsync(IReadOnlyList<ResourceKey> keys, CancellationToken cancellationToken)
         {
             List<ResourceWrapper> listData = new List<ResourceWrapper>();
@@ -95,7 +97,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             }
 
             return listData.AsReadOnly();
-    }
+        }
 
         // Gets a FHIR resource
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
@@ -137,7 +139,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             return new ResourceWrapper(
                 resourceId,
                 version.ToString(CultureInfo.InvariantCulture),
-                "Patient",
+                key.ResourceType,
                 new RawResource(document["resource"].ToString(), FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
                 null,
                 DateTimeOffset.Now,
@@ -181,6 +183,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             return results;
         }
 
+        // does the actual work of merging or creating new if the old one does not exist
         internal async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeInternalAsync(IReadOnlyList<ResourceWrapperOperation> resources, bool keepLastUpdated, bool keepAllDeleted, bool enlistInTransaction, bool useReplicasForReads, CancellationToken cancellationToken)
         {
             var results = new Dictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>();
@@ -204,33 +207,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
                     JObject doc = new JObject();
                     doc.Add("resource", JToken.Parse(text));
 
-                    List<string> searchnames = new List<string>();
-                    List<string> identifiers = new List<string>();
+                    ApplySearchIndexes(resourceExt.Wrapper.SearchIndices, ref doc);
 
-                    foreach (var item in resourceExt.Wrapper.SearchIndices)
-                    {
-                        _logger.LogInformation($"{item}");
-
-                        if (item.SearchParameter.Name == "given" ||
-                            item.SearchParameter.Name == "family")
-                        {
-#pragma warning disable CS8604 // Possible null reference argument.
-                            searchnames.Add(item.Value.ToString());
-#pragma warning restore CS8604 // Possible null reference argument.
-                        }
-
-                        if (item.SearchParameter.Name == "identifier")
-                        {
-#pragma warning disable CS8604 // Possible null reference argument.
-                            identifiers.Add(item.Value.ToString());
-#pragma warning restore CS8604 // Possible null reference argument.
-                        }
-                    }
-
-                    doc.Add("name", JArray.FromObject(searchnames));
-                    doc.Add("identifier", JArray.FromObject(identifiers));
-
-                    // var document = BsonSerializer.Deserialize<BsonDocument>(doc.ToString());
                     var document = doc.ToBsonDocument();
 
                     await _dataStoreConfiguration
@@ -257,6 +235,19 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             }
 
             return results;
+        }
+
+#pragma warning disable CA1822
+        private void ApplySearchIndexes(IReadOnlyCollection<SearchIndexEntry> searchIndices, ref JObject doc)
+        {
+#pragma warning restore CA1822
+            /*
+             * TODOCJH: To get up and running with the Search Expression Builder just dump the entirety
+             * of the search indexes into a property of the document.  At some point we will want to come back and
+             * start refining this
+             */
+
+            doc.Add("searchIndexes", JArray.FromObject(searchIndices));
         }
 
         // we can land here on a 'POST' and a 'PUT'
