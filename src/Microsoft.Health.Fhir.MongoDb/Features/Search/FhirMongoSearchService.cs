@@ -34,8 +34,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1852:Seal internal types", Justification = "Pending")]
     internal class FhirMongoSearchService : SearchService
     {
-        // private static readonly SearchParameterInfo _wildcardReferenceSearchParameter = new(SearchValueConstants.WildcardReferenceSearchParameterName, SearchValueConstants.WildcardReferenceSearchParameterName);
-
         private readonly MongoFhirDataStore _fhirDataStore;
         private readonly IQueryBuilder _queryBuilder;
         private readonly MongoDataStoreConfiguration _dataStoreConfiguration;
@@ -76,7 +74,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
             var filter = _queryBuilder.BuildSqlQuerySpec(searchOptions);
 
-            var documents = await _dataStoreConfiguration.GetCollection()
+            var documents = await _dataStoreConfiguration
+                .GetCollection()
                 .Find(filter)
                 .ToListAsync(cancellationToken);
 

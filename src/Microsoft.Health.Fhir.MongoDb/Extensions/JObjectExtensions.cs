@@ -23,5 +23,11 @@ namespace Microsoft.Health.Fhir.MongoDb.Extensions
             var document = BsonSerializer.Deserialize<BsonDocument>(obj.ToString());
             return document;
         }
+
+        public static BsonArray ToBsonArray(this JArray obj)
+        {
+            var document = BsonSerializer.Deserialize<BsonArray>(obj.ToString());
+            return document;
+        }
     }
 }

@@ -100,9 +100,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         }
 
         // Gets a FHIR resource
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task<ResourceWrapper> GetAsync(ResourceKey key, CancellationToken cancellationToken)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             var resourceType = key.ResourceType;
             var resourceId = key.Id;
@@ -125,9 +123,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             // TODOCJH:  Add checks for isdeleted, version , etc.
             var filter = Builders<BsonDocument>.Filter.Eq("resource.id", resourceId);
 
-            var document = _dataStoreConfiguration.GetCollection(resourceType)
+            var document = await _dataStoreConfiguration
+                .GetCollection()
                 .Find(filter)
-                .FirstOrDefault(cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (document == null)
             {
@@ -158,6 +157,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             throw new NotImplementedException();
         }
 
+        // HardDeleteAsync
         public async Task HardDeleteAsync(ResourceKey key, bool keepCurrentVersion, CancellationToken cancellationToken)
         {
             var resourceType = key.ResourceType;
@@ -165,10 +165,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 
             var filter = Builders<BsonDocument>.Filter.Eq("resource.id", resourceId);
 
-            var deleteResults = await _dataStoreConfiguration.GetCollection(resourceType)
+            var deleteResults = await _dataStoreConfiguration
+                .GetCollection()
                 .DeleteOneAsync(filter, cancellationToken);
-
-            // we can at least do some logging here
         }
 
         public async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeAsync(IReadOnlyList<ResourceWrapperOperation> resources, CancellationToken cancellationToken)
@@ -196,38 +195,47 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 
             foreach (var resourceExt in resources) // if list contains more that one version per resource it must be sorted by id and last updated DESC.
             {
-                var resource = resourceExt.Wrapper;
-                var identifier = resourceExt.GetIdentifier();
+                ResourceWrapper resource = resourceExt.Wrapper;
+                DataStoreOperationIdentifier identifier = resourceExt.GetIdentifier();
+
                 existingResources.TryGetValue(resource.ToResourceKey(true), out var existingResource);
 
                 if (existingResource == null)
                 {
                     string text = resourceExt.Wrapper.RawResource.Data;
 
-                    JObject doc = new JObject();
-                    doc.Add("resource", JToken.Parse(text));
-
-                    ApplySearchIndexes(resourceExt.Wrapper.SearchIndices, ref doc);
+                    var doc = new JObject
+                    {
+                        { "resource", JToken.Parse(text) },
+                        { "searchIndexes", GetSearchIndexes(resourceExt.Wrapper.SearchIndices) },
+                    };
 
                     var document = doc.ToBsonDocument();
 
                     await _dataStoreConfiguration
-                        .GetCollection(resourceExt.Wrapper.ResourceTypeName)
+                        .GetCollection()
                         .InsertOneAsync(document, new InsertOneOptions(), cancellationToken);
 
-                    results.Add(identifier, new DataStoreOperationOutcome(new UpsertOutcome(resourceExt.Wrapper, SaveOutcomeType.Created)));
+                    results.Add(
+                        identifier,
+                        new DataStoreOperationOutcome(new UpsertOutcome(resourceExt.Wrapper, SaveOutcomeType.Created)));
                 }
                 else
                 {
-                    // ok, lets just brute force this for now to get a feel for where we want to go...
+                    // TODOCJH: Implement Update
+                    // ok, we are updating an existing resource
+                    // for now we are just going to flush and fill the resoruce and search indexes
 
                     string text = resourceExt.Wrapper.RawResource.Data;
 
                     var filter = Builders<BsonDocument>.Filter.Eq("resource.id", resource.ResourceId);
 
-                    var update = Builders<BsonDocument>.Update.Set("resource", JObject.Parse(text).ToBsonDocument());
+                    var update = Builders<BsonDocument>.Update
+                        .Set("resource", JObject.Parse(text).ToBsonDocument())
+                        .Set("searchIndexes", GetSearchIndexes(resourceExt.Wrapper.SearchIndices).ToBsonArray());
 
-                    var updateResult = await _dataStoreConfiguration.GetCollection("patient")
+                    var updateResult = await _dataStoreConfiguration
+                        .GetCollection()
                         .UpdateOneAsync(filter, update, null, cancellationToken);
 
                     results.Add(identifier, new DataStoreOperationOutcome(new UpsertOutcome(resourceExt.Wrapper, SaveOutcomeType.Updated)));
@@ -238,7 +246,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         }
 
 #pragma warning disable CA1822
-        private void ApplySearchIndexes(IReadOnlyCollection<SearchIndexEntry> searchIndices, ref JObject doc)
+        private JArray GetSearchIndexes(IReadOnlyCollection<SearchIndexEntry> searchIndices)
         {
 #pragma warning restore CA1822
             /*
@@ -247,7 +255,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
              * start refining this
              */
 
-            doc.Add("searchIndexes", JArray.FromObject(searchIndices));
+            return JArray.FromObject(searchIndices);
         }
 
         // we can land here on a 'POST' and a 'PUT'
