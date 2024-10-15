@@ -17,9 +17,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1852:Seal internal types", Justification = "Pending")]
     internal class QueryBuilder : IQueryBuilder
     {
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning disable CS8625
         public FilterDefinition<BsonDocument> BuildSqlQuerySpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning restore CS8625
         {
             return new QueryBuilderHelper().BuildSqlQuerySpec(searchOptions, queryOptions ?? new QueryBuilderOptions());
         }

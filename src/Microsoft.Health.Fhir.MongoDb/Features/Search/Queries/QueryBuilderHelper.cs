@@ -18,41 +18,32 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
     internal sealed class QueryBuilderHelper
     {
-        private readonly StringBuilder _queryBuilder;
         private readonly QueryParameterManager _queryParameterManager;
-        private readonly QueryHelper _queryHelper;
 
         public QueryBuilderHelper()
         {
-            _queryBuilder = new StringBuilder();
             _queryParameterManager = new QueryParameterManager();
-            _queryHelper = new QueryHelper(_queryBuilder, _queryParameterManager);
         }
 
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning disable CS8625
         public FilterDefinition<BsonDocument> BuildSqlQuerySpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning restore CS8625
         {
             EnsureArg.IsNotNull(searchOptions, nameof(searchOptions));
             EnsureArg.IsNotNull(queryOptions, nameof(queryOptions));
 
-            var expressionQueryBuilder = new ExpressionQueryBuilder(
-                _queryBuilder,
-                _queryParameterManager);
+            var expressionQueryBuilder = new ExpressionQueryBuilder(_queryParameterManager);
 
             ExpressionQueryBuilderContext ctx = new ExpressionQueryBuilderContext();
 
             if (searchOptions.Expression != null)
             {
-                _queryBuilder.Append("AND ");
-#pragma warning disable CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
+#pragma warning disable CS8620
                 searchOptions.Expression.AcceptVisitor(expressionQueryBuilder, ctx);
-#pragma warning restore CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
+#pragma warning restore CS8620
             }
 
-#pragma warning disable CS8603 // Possible null reference return.
-            return ctx.Filter;
-#pragma warning restore CS8603 // Possible null reference return.
+            return expressionQueryBuilder.GetFilters();
         }
 
         public FilterDefinition<BsonDocument> GenerateReindexSql(SearchOptions searchOptions, string searchParameterHash)

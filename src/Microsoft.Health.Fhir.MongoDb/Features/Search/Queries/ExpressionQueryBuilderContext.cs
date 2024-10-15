@@ -17,9 +17,5 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         public ExpressionQueryBuilderContext()
         {
         }
-
-        public FilterDefinitionBuilder<BsonDocument> Builder { get; private set; } = Builders<BsonDocument>.Filter;
-
-        public FilterDefinition<BsonDocument>? Filter { get; set; }
     }
 }

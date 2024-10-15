@@ -43,9 +43,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
         public const string HighQuantityName = "hq";
 
-        public const string SystemName = "s";
+        public const string SystemName = "System";
 
-        public const string CodeName = "c";
+        public const string CodeName = "Code";
 
         public const string ReferenceBaseUriName = "rb";
 
@@ -53,7 +53,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
         public const string ReferenceResourceIdName = "ri";
 
-        public const string StringName = "s";
+        public const string StringName = "String";
 
         public const string TextName = "t";
 
