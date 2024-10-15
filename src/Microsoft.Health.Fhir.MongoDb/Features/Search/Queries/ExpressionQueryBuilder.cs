@@ -25,9 +25,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         private readonly QueryParameterManager _queryParameterManager;
         private readonly QueryAssembler _queryAssembler;
 
-#pragma warning disable CA1823 // Avoid unused private fields
+#pragma warning disable CA1823
         private static readonly Dictionary<FieldName, string> FieldNameMapping = new Dictionary<FieldName, string>()
-#pragma warning restore CA1823 // Avoid unused private fields
+#pragma warning restore CA1823
         {
             { FieldName.DateTimeEnd, SearchValueConstants.DateTimeEndName },
             { FieldName.DateTimeStart, SearchValueConstants.DateTimeStartName },
@@ -59,11 +59,11 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         public ExpressionQueryBuilderContext InitialContext => new ExpressionQueryBuilderContext();
 #pragma warning restore CS8603
 
-        public FilterDefinition<BsonDocument> GetFilters()
+        public BsonDocument GetFilters()
         {
 #pragma warning disable CS8603
             Console.WriteLine(_queryAssembler.RenderFilters().ToString());
-            return _queryAssembler.Filter;
+            return _queryAssembler.RenderFilters();
 #pragma warning restore CS8603
         }
 
@@ -85,14 +85,18 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             if (expression.BinaryOperator == BinaryOperator.GreaterThan)
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Gt(field, expression.Value);
+                throw new NotImplementedException();
+
+                // _queryAssembler.Filter = _queryAssembler.Filter &
+                 //   _queryAssembler.Builder.Gt(field, expression.Value);
             }
 
             if (expression.BinaryOperator == BinaryOperator.GreaterThanOrEqual)
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Gte(field, expression.Value);
+                throw new NotImplementedException();
+
+                // _queryAssembler.Filter = _queryAssembler.Filter &
+                //    _queryAssembler.Builder.Gte(field, expression.Value);
             }
 
             if (expression.BinaryOperator == BinaryOperator.LessThan)
@@ -155,13 +159,13 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
                 default:
                     {
-#pragma warning disable CA2241 // Provide correct arguments to formatting methods
+#pragma warning disable CA2241
                         string message = string.Format(
                             CultureInfo.InvariantCulture,
                             "UnhandledEnumValue",
                             nameof(MultiaryOperator),
                             op);
-#pragma warning restore CA2241 // Provide correct arguments to formatting methods
+#pragma warning restore CA2241
 
                         Debug.Fail(message);
 
@@ -189,7 +193,14 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             switch (expression.Parameter.Code)
             {
                 case SearchParameterNames.ResourceType:
-                    _queryAssembler.Filter = _queryAssembler.Builder.Eq("resource.resourceType", ((StringExpression)expression.Expression).Value);
+
+                    _queryAssembler
+                        .Filter
+                        .Add(new BsonDocument("resource.resourceType", ((StringExpression)expression.Expression).Value));
+
+                    // _queryAssembler.Filter = _queryAssembler
+                     //   .Builder
+                      //  .Eq("resource.resourceType", ((StringExpression)expression.Expression).Value);
 
                     // new BsonDocument("resource.resourceType", ((StringExpression)expression.Expression).Value)
 
@@ -229,17 +240,18 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 #pragma warning restore CS8603
         }
 
+        // AppendSubquery
         private void AppendSubquery(SearchParameterExpression expression, ExpressionQueryBuilderContext context, bool negate = false)
         {
-            var t = _queryParameterManager;
+            _queryAssembler.StartNewFilter();
 
             if (expression.Expression != null)
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Eq("searchIndexes.SearchParameter.Code", expression.Parameter.Code);
-
+                _queryAssembler.AddCondition(new BsonDocument("SearchParameter.Code", expression.Parameter.Code));
                 expression.Expression.AcceptVisitor(this, context);
             }
+
+            _queryAssembler.PushNewFilter();
         }
 
         public object VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
@@ -301,27 +313,31 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         {
             string fieldName = GetFieldName(expression);
 
-            string field = $"searchIndexes.Value.{fieldName}";
+            string field = $"Value.{fieldName}";
 
             if (expression.StringOperator == StringOperator.StartsWith)
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Regex(field, "^" + expression.Value + ".*");
+                // _queryAssembler.Filter = _queryAssembler.Filter &
+                //   _queryAssembler.Builder.Regex(field, "^" + expression.Value + ".*");
+
+                _queryAssembler.AddCondition(new BsonDocument(field, new BsonRegularExpression("^" + expression.Value + ".*")));
             }
             else if (expression.StringOperator == StringOperator.Equals)
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Eq(field, expression.Value);
+                _queryAssembler.AddCondition(new BsonDocument(field, expression.Value));
+
+               // _queryAssembler.Filter = _queryAssembler.Filter &
+                 //   _queryAssembler.Builder.Eq(field, expression.Value);
             }
             else if (expression.StringOperator == StringOperator.Contains)
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Regex(field, expression.Value);
+               // _queryAssembler.Filter = _queryAssembler.Filter &
+                 //   _queryAssembler.Builder.Regex(field, expression.Value);
             }
             else
             {
-                _queryAssembler.Filter = _queryAssembler.Filter &
-                    _queryAssembler.Builder.Eq(field, expression.Value);
+               // _queryAssembler.Filter = _queryAssembler.Filter &
+                 //   _queryAssembler.Builder.Eq(field, expression.Value);
             }
 
 #pragma warning disable CS8603

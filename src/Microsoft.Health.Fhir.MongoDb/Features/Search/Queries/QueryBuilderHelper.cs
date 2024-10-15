@@ -26,7 +26,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         }
 
 #pragma warning disable CS8625
-        public FilterDefinition<BsonDocument> BuildSqlQuerySpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
+        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
 #pragma warning restore CS8625
         {
             EnsureArg.IsNotNull(searchOptions, nameof(searchOptions));
@@ -44,11 +44,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             }
 
             return expressionQueryBuilder.GetFilters();
-        }
-
-        public FilterDefinition<BsonDocument> GenerateReindexSql(SearchOptions searchOptions, string searchParameterHash)
-        {
-            throw new NotImplementedException();
         }
     }
 }

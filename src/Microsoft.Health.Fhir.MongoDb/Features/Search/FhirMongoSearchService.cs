@@ -72,7 +72,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
         {
             _logger.LogInformation("SearchImpl");
 
-            var filter = _queryBuilder.BuildSqlQuerySpec(searchOptions);
+            var filter = _queryBuilder.BuildFilterSpec(searchOptions);
 
             var documents = await _dataStoreConfiguration
                 .GetCollection()

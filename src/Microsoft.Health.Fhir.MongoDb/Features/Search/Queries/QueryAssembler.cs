@@ -16,13 +16,14 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
     internal sealed class QueryAssembler
     {
+        private BsonDocument _inProcessFilter = new BsonDocument();
+        private BsonArray _inProcessConditions = new BsonArray();
+
         public QueryAssembler()
         {
         }
 
-        public FilterDefinitionBuilder<BsonDocument> Builder { get; private set; } = Builders<BsonDocument>.Filter;
-
-        public FilterDefinition<BsonDocument>? Filter { get; set; }
+        public List<BsonDocument> Filter { get; private set; } = new List<BsonDocument>();
 
         public BsonDocument RenderFilters()
         {
@@ -31,10 +32,38 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
 #pragma warning disable CS0618
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-            BsonDocument doc = Filter.Render(documentSerializer, serializerRegistry);
+            BsonArray arr = [.. Filter];
+            BsonDocument doc = new BsonDocument("$and", arr);
             return doc;
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 #pragma warning restore CS0618
+        }
+
+        public void StartNewFilter()
+        {
+            _inProcessFilter = new BsonDocument();
+            _inProcessConditions = new BsonArray();
+        }
+
+        public void AddCondition(BsonDocument condition)
+        {
+            _inProcessConditions.Add(condition);
+        }
+
+        public void PushNewFilter()
+        {
+            BsonDocument matchConditions = new BsonDocument();
+
+            foreach (BsonDocument condition in _inProcessConditions)
+            {
+                matchConditions.AddRange(condition);
+            }
+
+            _inProcessFilter = new BsonDocument(
+                "searchIndexes",
+                new BsonDocument("$elemMatch", matchConditions));
+
+            Filter.Add(_inProcessFilter);
         }
     }
 }

@@ -18,15 +18,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
     internal class QueryBuilder : IQueryBuilder
     {
 #pragma warning disable CS8625
-        public FilterDefinition<BsonDocument> BuildSqlQuerySpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
+        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
 #pragma warning restore CS8625
         {
-            return new QueryBuilderHelper().BuildSqlQuerySpec(searchOptions, queryOptions ?? new QueryBuilderOptions());
-        }
-
-        public FilterDefinition<BsonDocument> GenerateReindexSql(SearchOptions searchOptions, string searchParameterHash)
-        {
-            throw new NotImplementedException();
+            return new QueryBuilderHelper().BuildFilterSpec(searchOptions, queryOptions ?? new QueryBuilderOptions());
         }
     }
 }

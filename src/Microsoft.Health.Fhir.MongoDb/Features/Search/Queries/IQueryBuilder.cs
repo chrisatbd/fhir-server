@@ -16,9 +16,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
     internal interface IQueryBuilder
     {
 #pragma warning disable CS8625
-        FilterDefinition<BsonDocument> BuildSqlQuerySpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null);
+       BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null);
 #pragma warning restore CS8625
-
-        FilterDefinition<BsonDocument> GenerateReindexSql(SearchOptions searchOptions, string searchParameterHash);
     }
 }
