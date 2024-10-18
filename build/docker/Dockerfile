@@ -49,6 +49,9 @@ COPY ./src/Microsoft.Health.Fhir.CosmosDb.Core/Microsoft.Health.Fhir.CosmosDb.Co
 COPY ./src/Microsoft.Health.Fhir.CosmosDb.Initialization/Microsoft.Health.Fhir.CosmosDb.Initialization.csproj \
      ./src/Microsoft.Health.Fhir.CosmosDb.Initialization/Microsoft.Health.Fhir.CosmosDb.Initialization.csproj
 
+COPY ./src/Microsoft.Health.Fhir.MongoDb/Microsoft.Health.Fhir.MongoDb.csproj \
+     ./src/Microsoft.Health.Fhir.MongoDb/Microsoft.Health.Fhir.MongoDb.csproj
+
 COPY ./src/Microsoft.Health.Fhir.${FHIR_VERSION}.Core/Microsoft.Health.Fhir.${FHIR_VERSION}.Core.csproj \
      ./src/Microsoft.Health.Fhir.${FHIR_VERSION}.Core/Microsoft.Health.Fhir.${FHIR_VERSION}.Core.csproj
 
