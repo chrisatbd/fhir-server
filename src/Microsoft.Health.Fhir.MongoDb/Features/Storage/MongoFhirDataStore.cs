@@ -25,6 +25,7 @@ using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.Core.Models;
 using Microsoft.Health.Fhir.MongoDb.Configs;
 using Microsoft.Health.Fhir.MongoDb.Extensions;
+using Microsoft.Health.Fhir.MongoDb.Features.Search;
 using Microsoft.Identity.Client;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -139,7 +140,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
                 resourceId,
                 version.ToString(CultureInfo.InvariantCulture),
                 key.ResourceType,
-                new RawResource(document["resource"].ToString(), FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
+                new RawResource(document[FieldNameConstants.Resource].ToString(), FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
                 null,
                 DateTimeOffset.Now,
                 isDeleted,
@@ -163,7 +164,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             var resourceType = key.ResourceType;
             var resourceId = key.Id;
 
-            var filter = Builders<BsonDocument>.Filter.Eq("resource.id", resourceId);
+            var filter = Builders<BsonDocument>.Filter.Eq($"{FieldNameConstants.Resource}.{FieldNameConstants.Id}", resourceId);
 
             var deleteResults = await _dataStoreConfiguration
                 .GetCollection()
@@ -206,11 +207,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 
                     var doc = new JObject
                     {
-                        { "resource", JToken.Parse(text) },
-                        { "searchIndexes", GetSearchIndexes(resourceExt.Wrapper.SearchIndices) },
+                        { FieldNameConstants.Resource, JToken.Parse(text) },
                     };
 
                     var document = doc.ToBsonDocument();
+                    document.Add(FieldNameConstants.IsDeleted, false);
+                    document.AddRange(new BsonDocument(FieldNameConstants.SearchIndexes, GetSearchIndexes(resourceExt.Wrapper.SearchIndices)));
 
                     await _dataStoreConfiguration
                         .GetCollection()
@@ -224,15 +226,16 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
                 {
                     // TODOCJH: Implement Update
                     // ok, we are updating an existing resource
-                    // for now we are just going to flush and fill the resoruce and search indexes
+                    // for now we are just going to flush and fill the resource and search indexes
 
                     string text = resourceExt.Wrapper.RawResource.Data;
 
-                    var filter = Builders<BsonDocument>.Filter.Eq("resource.id", resource.ResourceId);
+                    var filter = Builders<BsonDocument>.Filter.Eq($"{FieldNameConstants.Resource}.{FieldNameConstants.Id}", resource.ResourceId);
 
                     var update = Builders<BsonDocument>.Update
-                        .Set("resource", JObject.Parse(text).ToBsonDocument())
-                        .Set("searchIndexes", GetSearchIndexes(resourceExt.Wrapper.SearchIndices).ToBsonArray());
+                        .Set(FieldNameConstants.Resource, JObject.Parse(text).ToBsonDocument())
+                        .Set(FieldNameConstants.SearchIndexes, GetSearchIndexes(resourceExt.Wrapper.SearchIndices))
+                        .Set(FieldNameConstants.IsDeleted, resourceExt.Wrapper.IsDeleted);
 
                     var updateResult = await _dataStoreConfiguration
                         .GetCollection()
@@ -246,7 +249,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         }
 
 #pragma warning disable CA1822
-        private JArray GetSearchIndexes(IReadOnlyCollection<SearchIndexEntry> searchIndices)
+        private BsonArray GetSearchIndexes(IReadOnlyCollection<SearchIndexEntry> searchIndices)
         {
 #pragma warning restore CA1822
             /*
@@ -255,10 +258,17 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
              * start refining this
              */
 
-            return JArray.FromObject(searchIndices);
+            BsonArray indexes = new BsonArray();
+
+            foreach (SearchIndexEntry entry in searchIndices)
+            {
+                indexes.Add(new SearchIndexEntryBsonDocumentGenerator().Generate(entry));
+            }
+
+            return indexes;
         }
 
-        // we can land here on a 'POST' and a 'PUT'
+        // we can land here on a 'POST' a 'PUT' and 'DELETE'
         public async Task<UpsertOutcome> UpsertAsync(ResourceWrapperOperation resource, CancellationToken cancellationToken)
         {
             bool isBundleOperation = _bundleOrchestrator.IsEnabled && resource.BundleResourceContext != null;
@@ -271,6 +281,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             _logger.LogInformation(resource.Wrapper.ResourceId);
 
             var mergeOutcome = await MergeAsync(new[] { resource }, cancellationToken);
+
             DataStoreOperationOutcome dataStoreOperationOutcome = mergeOutcome.First().Value;
 
             if (dataStoreOperationOutcome.IsOperationSuccessful)
@@ -283,6 +294,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             }
         }
 
+        // UpdateSearchParameterIndicesAsync
         public Task<ResourceWrapper> UpdateSearchParameterIndicesAsync(ResourceWrapper resourceWrapper, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();

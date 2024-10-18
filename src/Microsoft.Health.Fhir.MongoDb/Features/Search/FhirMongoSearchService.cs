@@ -89,13 +89,13 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 var isRawResourceMetaSet = true;
 
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-                string rawResource = entry["resource"].ToString();
+                string rawResource = entry[FieldNameConstants.Resource].ToString();
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
 
                 var rm = new ResourceWrapper(
-                    entry["resource"]["id"].ToString(),
+                    entry[FieldNameConstants.Resource][FieldNameConstants.Id].ToString(),
                     version.ToString(CultureInfo.InvariantCulture),
-                    entry["resource"]["resourceType"].ToString(),
+                    entry[FieldNameConstants.Resource][FieldNameConstants.ResourceType].ToString(),
                     new RawResource(rawResource, FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
                     null,
                     DateTimeOffset.Now,

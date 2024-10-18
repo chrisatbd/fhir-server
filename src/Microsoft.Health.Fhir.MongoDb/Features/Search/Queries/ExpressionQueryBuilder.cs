@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EnsureThat;
+using Hl7.Fhir.ElementModel.Types;
 using Microsoft.Health.Fhir.Api;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
 using Microsoft.Health.Fhir.Core.Features.Search;
@@ -71,7 +72,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         {
             string fieldName = GetFieldName(expression);
 
-            string field = $"searchIndexes.Value.{fieldName}";
+            string field = $"Value.{fieldName}";
 
             if (expression.BinaryOperator == BinaryOperator.Equal)
             {
@@ -85,18 +86,29 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             if (expression.BinaryOperator == BinaryOperator.GreaterThan)
             {
-                throw new NotImplementedException();
-
-                // _queryAssembler.Filter = _queryAssembler.Filter &
-                 //   _queryAssembler.Builder.Gt(field, expression.Value);
+                // so this note is around while we are thinking about birthdate.
+                // How do we want to handle.  If we want to do it as a string
+                // it could get ugly
+                if (expression.Value is System.DateTimeOffset)
+                {
+                    var dto = (System.DateTimeOffset)expression.Value;
+                    var datetime = new BsonDateTime(dto.DateTime);
+                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gt", datetime)));
+                }
+                else
+                {
+                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gt", expression.Value.ToString())));
+                }
             }
 
             if (expression.BinaryOperator == BinaryOperator.GreaterThanOrEqual)
             {
-                throw new NotImplementedException();
-
-                // _queryAssembler.Filter = _queryAssembler.Filter &
-                //    _queryAssembler.Builder.Gte(field, expression.Value);
+                if (expression.Value is System.DateTimeOffset)
+                {
+                    var dto = (System.DateTimeOffset)expression.Value;
+                    var datetime = new BsonDateTime(dto.DateTime);
+                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gte", datetime)));
+                }
             }
 
             if (expression.BinaryOperator == BinaryOperator.LessThan)
@@ -106,7 +118,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             if (expression.BinaryOperator == BinaryOperator.LessThanOrEqual)
             {
-                throw new NotImplementedException();
+                if (expression.Value is System.DateTimeOffset)
+                {
+                    var dto = (System.DateTimeOffset)expression.Value;
+                    var datetime = new BsonDateTime(dto.DateTime);
+                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$lte", datetime)));
+                }
             }
 
 #pragma warning disable CS8603
@@ -198,12 +215,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                         .Filter
                         .Add(new BsonDocument("resource.resourceType", ((StringExpression)expression.Expression).Value));
 
-                    // _queryAssembler.Filter = _queryAssembler
-                     //   .Builder
-                      //  .Eq("resource.resourceType", ((StringExpression)expression.Expression).Value);
-
-                    // new BsonDocument("resource.resourceType", ((StringExpression)expression.Expression).Value)
-
                     break;
                 case SearchParameterNames.Id:
                     // expression.Expression.AcceptVisitor(this, context.WithFieldNameOverride((n, i) => KnownResourceWrapperProperties.ResourceId));
@@ -271,7 +282,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             // if (FieldNameMapping.TryGetValue(field.FieldName, out string value))
             // {
-              //  fieldName = value;
+            //  fieldName = value;
             // }
 
             // string fieldName = field.FieldName.ToString();
@@ -303,7 +314,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             if (fieldName == "DateTimeEnd")
             {
-                fieldName = "StartEnd";
+                fieldName = "End";
             }
 
             return fieldName;
@@ -317,27 +328,23 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             if (expression.StringOperator == StringOperator.StartsWith)
             {
-                // _queryAssembler.Filter = _queryAssembler.Filter &
-                //   _queryAssembler.Builder.Regex(field, "^" + expression.Value + ".*");
-
-                _queryAssembler.AddCondition(new BsonDocument(field, new BsonRegularExpression("^" + expression.Value + ".*")));
+                _queryAssembler
+                    .AddCondition(new BsonDocument(field, new BsonRegularExpression("^" + expression.Value + ".*")));
             }
             else if (expression.StringOperator == StringOperator.Equals)
             {
-                _queryAssembler.AddCondition(new BsonDocument(field, expression.Value));
-
-               // _queryAssembler.Filter = _queryAssembler.Filter &
-                 //   _queryAssembler.Builder.Eq(field, expression.Value);
+                _queryAssembler
+                    .AddCondition(new BsonDocument(field, expression.Value));
             }
             else if (expression.StringOperator == StringOperator.Contains)
             {
-               // _queryAssembler.Filter = _queryAssembler.Filter &
-                 //   _queryAssembler.Builder.Regex(field, expression.Value);
+                // _queryAssembler.Filter = _queryAssembler.Filter &
+                //   _queryAssembler.Builder.Regex(field, expression.Value);
             }
             else
             {
-               // _queryAssembler.Filter = _queryAssembler.Filter &
-                 //   _queryAssembler.Builder.Eq(field, expression.Value);
+                _queryAssembler
+                    .AddCondition(new BsonDocument(field, expression.Value));
             }
 
 #pragma warning disable CS8603

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Health.Fhir.MongoDb.Features.Storage;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
@@ -33,6 +34,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 #pragma warning disable CS0618
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             BsonArray arr = [.. Filter];
+
+            arr.Add(new BsonDocument(FieldNameConstants.IsDeleted, false));
+
             BsonDocument doc = new BsonDocument("$and", arr);
             return doc;
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
@@ -60,7 +64,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             }
 
             _inProcessFilter = new BsonDocument(
-                "searchIndexes",
+                FieldNameConstants.SearchIndexes,
                 new BsonDocument("$elemMatch", matchConditions));
 
             Filter.Add(_inProcessFilter);

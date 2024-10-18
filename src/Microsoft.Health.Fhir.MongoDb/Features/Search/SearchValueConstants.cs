@@ -21,9 +21,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
         public const string ParamName = "p";
 
-        public const string DateTimeStartName = "st";
+        public const string DateTimeStartName = "Start";
 
-        public const string DateTimeEndName = "et";
+        public const string DateTimeEndName = "End";
 
         public const string NumberName = "n";
 
@@ -37,11 +37,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
         public const string NormalizedTextName = NormalizedPrefix + TextName;
 
-        public const string QuantityName = "q";
+        // TODOCJH: Is this what we want ?  Cheating from SQL [FHIR].[dbo].[QuantitySearchParam] table
+        public const string QuantityName = "Single";
 
-        public const string LowQuantityName = "lq";
+        public const string LowQuantityName = "Low";
 
-        public const string HighQuantityName = "hq";
+        public const string HighQuantityName = "High";
 
         public const string SystemName = "System";
 
