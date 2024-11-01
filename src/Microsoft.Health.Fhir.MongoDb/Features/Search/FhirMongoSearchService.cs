@@ -117,7 +117,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 resultEntries,
                 null,
                 null,
-                new System.Collections.Generic.List<Tuple<string, string>>());
+                new List<Tuple<string, string>>());
         }
 
         public override async Task<SearchResult> SearchAsync(SearchOptions searchOptions, CancellationToken cancellationToken)

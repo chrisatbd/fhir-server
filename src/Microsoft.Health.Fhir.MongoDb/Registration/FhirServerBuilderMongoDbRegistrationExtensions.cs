@@ -140,7 +140,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AsSelf()
                 .AsImplementedInterfaces();
 
-            fhirServerBuilder.Services.Add<MongoDbDbSearchParameterValidator>()
+            fhirServerBuilder.Services.Add<MongoDbSearchParameterValidator>()
                 .Singleton()
                 .AsSelf()
                 .AsImplementedInterfaces();

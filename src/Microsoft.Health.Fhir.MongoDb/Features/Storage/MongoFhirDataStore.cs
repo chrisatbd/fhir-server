@@ -262,7 +262,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 
             foreach (SearchIndexEntry entry in searchIndices)
             {
-                indexes.Add(new SearchIndexEntryBsonDocumentGenerator().Generate(entry));
+                indexes.Add(SearchIndexEntryBsonDocumentGenerator.Generate(entry));
             }
 
             return indexes;

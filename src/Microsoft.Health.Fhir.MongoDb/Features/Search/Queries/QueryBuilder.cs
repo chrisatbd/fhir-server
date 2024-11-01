@@ -17,9 +17,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1852:Seal internal types", Justification = "Pending")]
     internal class QueryBuilder : IQueryBuilder
     {
-#pragma warning disable CS8625
-        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
-#pragma warning restore CS8625
+        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions? queryOptions = null)
         {
             return new QueryBuilderHelper().BuildFilterSpec(searchOptions, queryOptions ?? new QueryBuilderOptions());
         }

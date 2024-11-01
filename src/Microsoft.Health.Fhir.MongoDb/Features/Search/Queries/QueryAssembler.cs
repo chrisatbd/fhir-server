@@ -32,14 +32,14 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             var documentSerializer = serializerRegistry.GetSerializer<BsonDocument>();
 
 #pragma warning disable CS0618
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8602
             BsonArray arr = [.. Filter];
 
             arr.Add(new BsonDocument(FieldNameConstants.IsDeleted, false));
 
             BsonDocument doc = new BsonDocument("$and", arr);
             return doc;
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8602
 #pragma warning restore CS0618
         }
 
@@ -54,7 +54,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             _inProcessConditions.Add(condition);
         }
 
-        public void PushNewFilter()
+        public void PushFilter()
         {
             BsonDocument matchConditions = new BsonDocument();
 

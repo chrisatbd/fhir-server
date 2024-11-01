@@ -21,7 +21,7 @@ using MongoDB.Driver;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
-    internal sealed class ExpressionQueryBuilder : IExpressionVisitorWithInitialContext<ExpressionQueryBuilderContext, object>
+    internal sealed class ExpressionQueryBuilder : IExpressionVisitorWithInitialContext<ExpressionQueryBuilderContext, object?>
     {
         private readonly QueryParameterManager _queryParameterManager;
         private readonly QueryAssembler _queryAssembler;
@@ -68,10 +68,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 #pragma warning restore CS8603
         }
 
-        public object VisitBinary(BinaryExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitBinary(BinaryExpression expression, ExpressionQueryBuilderContext context)
         {
             string fieldName = GetFieldName(expression);
-
             string field = $"Value.{fieldName}";
 
             if (expression.BinaryOperator == BinaryOperator.Equal)
@@ -126,42 +125,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 }
             }
 
-#pragma warning disable CS8603
             return null;
-#pragma warning restore CS8603
         }
 
-        public object VisitChained(ChainedExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitCompartment(CompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitIn<T>(InExpression<T> expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitInclude(IncludeExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitMissingField(MissingFieldExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitMissingSearchParameter(MissingSearchParameterExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitMultiary(MultiaryExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitMultiary(MultiaryExpression expression, ExpressionQueryBuilderContext context)
         {
             MultiaryOperator op = expression.MultiaryOperation;
             IReadOnlyList<Expression> expressions = expression.Expressions;
@@ -195,17 +162,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 expressions[i].AcceptVisitor(this, context);
             }
 
-#pragma warning disable CS8603
             return null;
-#pragma warning restore CS8603
         }
 
-        public object VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitSearchParameter(SearchParameterExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitSearchParameter(SearchParameterExpression expression, ExpressionQueryBuilderContext context)
         {
             switch (expression.Parameter.Code)
             {
@@ -246,9 +206,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                     break;
             }
 
-#pragma warning disable CS8603
             return null;
-#pragma warning restore CS8603
         }
 
         // AppendSubquery
@@ -262,17 +220,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 expression.Expression.AcceptVisitor(this, context);
             }
 
-            _queryAssembler.PushNewFilter();
-        }
-
-        public object VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object VisitSortParameter(SortExpression expression, ExpressionQueryBuilderContext context)
-        {
-            throw new NotImplementedException();
+            _queryAssembler.PushFilter();
         }
 
         private static string GetFieldName(IFieldExpression field)
@@ -320,7 +268,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             return fieldName;
         }
 
-        public object VisitString(StringExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitString(StringExpression expression, ExpressionQueryBuilderContext context)
         {
             string fieldName = GetFieldName(expression);
 
@@ -338,8 +286,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             }
             else if (expression.StringOperator == StringOperator.Contains)
             {
-                // _queryAssembler.Filter = _queryAssembler.Filter &
-                //   _queryAssembler.Builder.Regex(field, expression.Value);
+                _queryAssembler.
+                    AddCondition(new BsonDocument(field, new BsonRegularExpression(expression.Value)));
             }
             else
             {
@@ -347,12 +295,55 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                     .AddCondition(new BsonDocument(field, expression.Value));
             }
 
-#pragma warning disable CS8603
             return null;
-#pragma warning restore CS8603
         }
 
         public object VisitUnion(UnionExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitChained(ChainedExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitCompartment(CompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitIn<T>(InExpression<T> expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitInclude(IncludeExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitMissingField(MissingFieldExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitMissingSearchParameter(MissingSearchParameterExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitSortParameter(SortExpression expression, ExpressionQueryBuilderContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }

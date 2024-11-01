@@ -25,9 +25,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             _queryParameterManager = new QueryParameterManager();
         }
 
-#pragma warning disable CS8625
-        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions = null)
-#pragma warning restore CS8625
+        // returns a BSON document containing the assembled filter specification from the
+        // search option expressions
+        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions)
         {
             EnsureArg.IsNotNull(searchOptions, nameof(searchOptions));
             EnsureArg.IsNotNull(queryOptions, nameof(queryOptions));

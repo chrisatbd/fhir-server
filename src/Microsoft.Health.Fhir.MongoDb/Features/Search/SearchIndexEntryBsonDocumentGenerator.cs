@@ -12,25 +12,24 @@ using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 {
-    internal sealed class SearchIndexEntryBsonDocumentGenerator : ISearchValueVisitor
+    internal static class SearchIndexEntryBsonDocumentGenerator
     {
-        private SearchIndexEntry? Entry { get; set; }
-
-        public BsonDocument Generate(SearchIndexEntry entry)
+        public static BsonDocument Generate(SearchIndexEntry entry)
         {
             EnsureArg.IsNotNull(entry, nameof(entry));
-            Entry = entry;
 
-            string sp = Newtonsoft.Json.JsonConvert.SerializeObject(entry.SearchParameter);
             string val = Newtonsoft.Json.JsonConvert.SerializeObject(entry.Value);
 
+            // create the default which will fall through for any SearchParamaterType that is not defined.
             BsonDocument valueDocument = BsonSerializer.Deserialize<BsonDocument>(val);
 
             if (entry.SearchParameter.Type == ValueSets.SearchParamType.Date)
             {
                 var dtsv = (DateTimeSearchValue)entry.Value;
 
+                // NOTECJH:  For reference:
                 // The Cosmos implementation does not have IsValidAsCompositeComponent, IsMin, or IsMax
+                // The SQL Implementaion does
                 valueDocument =
                 [
                     new BsonElement(SearchValueConstants.DateTimeStartName, new BsonDateTime(dtsv.Start.DateTime)),
@@ -43,83 +42,52 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
             if (entry.SearchParameter.Type == ValueSets.SearchParamType.Quantity)
             {
+                var quantityDocument = new BsonDocument();
+
                 var quantity = (QuantitySearchValue)entry.Value;
 
-                // The Cosmos implementation does not have IsValidAsCompositeComponent, IsMin, or IsMax
-                valueDocument = new BsonDocument();
                 if (quantity.System != null)
                 {
-                    valueDocument.Add(SearchValueConstants.SystemName, quantity.System);
+                    quantityDocument.Add(SearchValueConstants.SystemName, quantity.System);
                 }
 
                 if (quantity.Code != null)
                 {
-                    valueDocument.Add(SearchValueConstants.CodeName, quantity.Code);
+                    quantityDocument.Add(SearchValueConstants.CodeName, quantity.Code);
                 }
 
                 if (quantity.Low == quantity.High)
                 {
-                    valueDocument.Add(SearchValueConstants.QuantityName, quantity.Low);
+                    quantityDocument.Add(SearchValueConstants.QuantityName, quantity.Low);
                 }
 
-                valueDocument.Add(SearchValueConstants.LowQuantityName, quantity.Low);
-                valueDocument.Add(SearchValueConstants.HighQuantityName, quantity.High);
+                quantityDocument.Add(SearchValueConstants.LowQuantityName, quantity.Low);
+                quantityDocument.Add(SearchValueConstants.HighQuantityName, quantity.High);
+
+                valueDocument = quantityDocument;
             }
-
-            BsonDocument searchParams = BsonSerializer.Deserialize<BsonDocument>(sp);
-
-            // TODOCJH:  Just some simple 'trimming' for now
-            searchParams.Remove("Description");
-            searchParams.Remove("TargetResourceTypes");
-            searchParams.Remove("BaseResourceTypes");
 
             var ret = new BsonDocument
             {
-                { "SearchParameter", searchParams },
+                { "SearchParameter", GetSearchParameterDocument(entry) },
                 { "Value", valueDocument },
             };
 
             return ret;
         }
 
-        public void Visit(CompositeSearchValue composite)
+        private static BsonDocument GetSearchParameterDocument(SearchIndexEntry entry)
         {
-            throw new NotImplementedException();
-        }
+            string sp = Newtonsoft.Json.JsonConvert.SerializeObject(entry.SearchParameter);
 
-        public void Visit(DateTimeSearchValue dateTime)
-        {
-            throw new NotImplementedException();
-        }
+            BsonDocument searchParams = BsonSerializer.Deserialize<BsonDocument>(sp);
 
-        public void Visit(NumberSearchValue number)
-        {
-            throw new NotImplementedException();
-        }
+            // TODOCJH:  Just some simple ' property trimming' for now
+            searchParams.Remove("Description");
+            searchParams.Remove("TargetResourceTypes");
+            searchParams.Remove("BaseResourceTypes");
 
-        public void Visit(QuantitySearchValue quantity)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Visit(ReferenceSearchValue reference)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Visit(StringSearchValue s)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Visit(TokenSearchValue token)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Visit(UriSearchValue uri)
-        {
-            throw new NotImplementedException();
+            return searchParams;
         }
     }
 }

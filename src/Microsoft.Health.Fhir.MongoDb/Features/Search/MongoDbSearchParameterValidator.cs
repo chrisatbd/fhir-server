@@ -11,7 +11,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "WTF")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1852:Seal internal types", Justification = "WTF Part 2")]
 
-    internal class MongoDbDbSearchParameterValidator : IDataStoreSearchParameterValidator
+    internal class MongoDbSearchParameterValidator : IDataStoreSearchParameterValidator
     {
         // Currently Cosmos DB has not additional validation steps to perform specific to the
         // data store for validation of a SearchParameter
