@@ -88,7 +88,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 // so this note is around while we are thinking about birthdate.
                 // How do we want to handle.  If we want to do it as a string
                 // it could get ugly
-                if (expression.Value is System.DateTimeOffset)
+                if (expression.Value is decimal)
+                {
+                    var dv = (decimal)expression.Value;
+                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gt", BsonDecimal128.Create(dv))));
+                }
+                else if (expression.Value is System.DateTimeOffset)
                 {
                     var dto = (System.DateTimeOffset)expression.Value;
                     var datetime = new BsonDateTime(dto.DateTime);

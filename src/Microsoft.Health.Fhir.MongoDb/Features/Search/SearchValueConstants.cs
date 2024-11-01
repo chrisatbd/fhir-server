@@ -37,8 +37,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
         public const string NormalizedTextName = NormalizedPrefix + TextName;
 
-        // TODOCJH: Is this what we want ?  Cheating from SQL [FHIR].[dbo].[QuantitySearchParam] table
-        public const string QuantityName = "Single";
+        // TODOCJH: Is this what we want ?
+        // previously Cheated from SQL [FHIR].[dbo].[QuantitySearchParam] table, but
+        // now going back to quantity
+        public const string QuantityName = "Quantity";
 
         public const string LowQuantityName = "Low";
 

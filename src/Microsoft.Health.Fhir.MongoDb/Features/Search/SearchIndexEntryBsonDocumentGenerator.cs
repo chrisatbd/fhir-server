@@ -56,6 +56,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                     quantityDocument.Add(SearchValueConstants.CodeName, quantity.Code);
                 }
 
+                // TODOCJH:  We are taking it on faith that if there is only a value, which is actually
+                // not what fhir prescribes.  Is there something going on with trying to use range and
+                // quantity ?
                 if (quantity.Low == quantity.High)
                 {
                     quantityDocument.Add(SearchValueConstants.QuantityName, quantity.Low);
