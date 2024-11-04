@@ -16,6 +16,7 @@ using Microsoft.Health.Fhir.Core.Features.Persistence;
 using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.Core.Features.Search.Expressions;
 using Microsoft.Health.Fhir.MongoDb.Features.Queries;
+using Microsoft.Health.Fhir.MongoDb.Features.Storage;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -25,6 +26,16 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
     {
         private readonly QueryParameterManager _queryParameterManager;
         private readonly QueryAssembler _queryAssembler;
+
+        private static readonly Dictionary<BinaryOperator, string> BinaryOperatorMapping = new Dictionary<BinaryOperator, string>()
+        {
+            { BinaryOperator.Equal, "$eg" },
+            { BinaryOperator.GreaterThan, "$gt" },
+            { BinaryOperator.GreaterThanOrEqual, "$gte" },
+            { BinaryOperator.LessThan, "$lt" },
+            { BinaryOperator.LessThanOrEqual, "$lte" },
+            { BinaryOperator.NotEqual, "$ne" },
+        };
 
 #pragma warning disable CA1823
         private static readonly Dictionary<FieldName, string> FieldNameMapping = new Dictionary<FieldName, string>()
@@ -73,62 +84,27 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             string fieldName = GetFieldName(expression);
             string field = $"Value.{fieldName}";
 
-            if (expression.BinaryOperator == BinaryOperator.Equal)
+            // so this note is around while we are thinking about birthdate.
+            // How do we want to handle.  If we want to do it as a string
+            // it could get ugly
+
+            BsonValue? val = null;
+
+            if (expression.Value is decimal dv)
             {
-                throw new NotImplementedException();
+                val = BsonDecimal128.Create(dv);
+            }
+            else if (expression.Value is System.DateTimeOffset dto)
+            {
+                var datetime = new BsonDateTime(dto.DateTime);
+                val = datetime;
+            }
+            else
+            {
+                val = expression.Value.ToString();
             }
 
-            if (expression.BinaryOperator == BinaryOperator.NotEqual)
-            {
-                throw new NotImplementedException();
-            }
-
-            if (expression.BinaryOperator == BinaryOperator.GreaterThan)
-            {
-                // so this note is around while we are thinking about birthdate.
-                // How do we want to handle.  If we want to do it as a string
-                // it could get ugly
-                if (expression.Value is decimal)
-                {
-                    var dv = (decimal)expression.Value;
-                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gt", BsonDecimal128.Create(dv))));
-                }
-                else if (expression.Value is System.DateTimeOffset)
-                {
-                    var dto = (System.DateTimeOffset)expression.Value;
-                    var datetime = new BsonDateTime(dto.DateTime);
-                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gt", datetime)));
-                }
-                else
-                {
-                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gt", expression.Value.ToString())));
-                }
-            }
-
-            if (expression.BinaryOperator == BinaryOperator.GreaterThanOrEqual)
-            {
-                if (expression.Value is System.DateTimeOffset)
-                {
-                    var dto = (System.DateTimeOffset)expression.Value;
-                    var datetime = new BsonDateTime(dto.DateTime);
-                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$gte", datetime)));
-                }
-            }
-
-            if (expression.BinaryOperator == BinaryOperator.LessThan)
-            {
-                throw new NotImplementedException();
-            }
-
-            if (expression.BinaryOperator == BinaryOperator.LessThanOrEqual)
-            {
-                if (expression.Value is System.DateTimeOffset)
-                {
-                    var dto = (System.DateTimeOffset)expression.Value;
-                    var datetime = new BsonDateTime(dto.DateTime);
-                    _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument("$lte", datetime)));
-                }
-            }
+            _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument(GetMappedValue(BinaryOperatorMapping, expression.BinaryOperator), val)));
 
             return null;
         }
@@ -177,8 +153,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 case SearchParameterNames.ResourceType:
 
                     _queryAssembler
-                        .Filter
-                        .Add(new BsonDocument("resource.resourceType", ((StringExpression)expression.Expression).Value));
+                        .AddFilter(new BsonDocument($"{FieldNameConstants.Resource}.{FieldNameConstants.ResourceType}", ((StringExpression)expression.Expression).Value));
 
                     break;
                 case SearchParameterNames.Id:
@@ -221,7 +196,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
             if (expression.Expression != null)
             {
-                _queryAssembler.AddCondition(new BsonDocument("SearchParameter.Code", expression.Parameter.Code));
+                _queryAssembler.AddCondition(new BsonDocument($"{FieldNameConstants.SearchParameter}.{FieldNameConstants.SearchParameterCode}", expression.Parameter.Code));
                 expression.Expression.AcceptVisitor(this, context);
             }
 
@@ -351,6 +326,24 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         public object VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
+        }
+
+#pragma warning disable CS8714
+        private static string GetMappedValue<T>(Dictionary<T, string> mapping, T key)
+#pragma warning restore CS8714
+        {
+#pragma warning disable CS8600
+            if (mapping.TryGetValue(key, out string value))
+            {
+                return value;
+            }
+#pragma warning restore CS8600
+
+            string message = string.Format("Unhandled {0} '{1}'.", typeof(T).Name, key);
+
+            Debug.Fail(message);
+
+            throw new InvalidOperationException(message);
         }
     }
 }

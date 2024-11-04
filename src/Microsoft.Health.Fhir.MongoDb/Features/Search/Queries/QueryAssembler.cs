@@ -24,7 +24,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         {
         }
 
-        public List<BsonDocument> Filter { get; private set; } = new List<BsonDocument>();
+        private List<BsonDocument> Filter { get; } = new List<BsonDocument>();
 
         public BsonDocument RenderFilters()
         {
@@ -68,6 +68,11 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 new BsonDocument("$elemMatch", matchConditions));
 
             Filter.Add(_inProcessFilter);
+        }
+
+        public void AddFilter(BsonDocument filter)
+        {
+            Filter.Add(filter);
         }
     }
 }

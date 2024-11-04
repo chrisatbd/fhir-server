@@ -17,5 +17,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         public const string ResourceType = "resourceType";
         public const string IsDeleted = "isDeleted";
         public const string SearchIndexes = "searchIndexes";
+        public const string SearchParameter = "SearchParameter";
+        public const string SearchParameterCode = "Code";
     }
 }
