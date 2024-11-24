@@ -16,7 +16,9 @@ using Amazon.Runtime.Internal.Transform;
 using Azure.Core;
 using EnsureThat;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Health.Core.Features.Context;
+using Microsoft.Health.Fhir.Core.Configs;
 using Microsoft.Health.Fhir.Core.Features.Conformance;
 using Microsoft.Health.Fhir.Core.Features.Context;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
@@ -26,6 +28,7 @@ using Microsoft.Health.Fhir.Core.Models;
 using Microsoft.Health.Fhir.MongoDb.Configs;
 using Microsoft.Health.Fhir.MongoDb.Extensions;
 using Microsoft.Health.Fhir.MongoDb.Features.Search;
+using Microsoft.Health.Fhir.ValueSets;
 using Microsoft.Identity.Client;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -45,17 +48,26 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         private readonly RequestContextAccessor<IFhirRequestContext> _requestContextAccessor;
         private readonly IBundleOrchestrator _bundleOrchestrator;
         private readonly MongoDataStoreConfiguration _dataStoreConfiguration;
+        private readonly CoreFeatureConfiguration _coreFeatures;
 
         public MongoFhirDataStore(
             ILogger<MongoFhirDataStore> logger,
             RequestContextAccessor<IFhirRequestContext> requestContextAccessor,
             IBundleOrchestrator bundleOrchestrator,
+            IOptions<CoreFeatureConfiguration> coreFeatures,
             MongoDataStoreConfiguration dataStoreConfiguration)
         {
+            EnsureArg.IsNotNull(logger, nameof(logger));
+            EnsureArg.IsNotNull(coreFeatures, nameof(coreFeatures));
+            EnsureArg.IsNotNull(bundleOrchestrator, nameof(bundleOrchestrator));
+            EnsureArg.IsNotNull(requestContextAccessor, nameof(requestContextAccessor));
+            EnsureArg.IsNotNull(dataStoreConfiguration, nameof(dataStoreConfiguration));
+
             _logger = logger;
             _requestContextAccessor = requestContextAccessor;
             _bundleOrchestrator = bundleOrchestrator;
             _dataStoreConfiguration = dataStoreConfiguration;
+            _coreFeatures = coreFeatures.Value;
         }
 
         public void Build(ICapabilityStatementBuilder builder)
@@ -75,6 +87,38 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             {
                 _logger.LogError(e, "MongoFhirDataStore. 'Default Resource Interactions' failed. Elapsed: {ElapsedTime}. Memory: {MemoryInUse}.", watch.Elapsed, GC.GetTotalMemory(forceFullCollection: false));
                 throw;
+            }
+
+            // NOTECJH:  For batch and transaction interesting the implementation between sql and cosmos
+
+            if (_coreFeatures.SupportsBatch)
+            {
+                try
+                {
+                    watch = Stopwatch.StartNew();
+                    builder.AddGlobalInteraction(SystemRestfulInteraction.Batch);
+                    _logger.LogInformation("MongoFhirDataStore. 'Global Interaction' built. Elapsed: {ElapsedTime}. Memory: {MemoryInUse}.", watch.Elapsed, GC.GetTotalMemory(forceFullCollection: false));
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "MongoFhirDataStore. 'Global Interaction' failed. Elapsed: {ElapsedTime}. Memory: {MemoryInUse}.", watch.Elapsed, GC.GetTotalMemory(forceFullCollection: false));
+                    throw;
+                }
+            }
+
+            if (_coreFeatures.SupportsTransaction)
+            {
+                try
+                {
+                    watch = Stopwatch.StartNew();
+                    builder.AddGlobalInteraction(SystemRestfulInteraction.Transaction);
+                    _logger.LogInformation("MongoFhirDataStore. 'Global Interaction' built. Elapsed: {ElapsedTime}. Memory: {MemoryInUse}.", watch.Elapsed, GC.GetTotalMemory(forceFullCollection: false));
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "MongoFhirDataStore. 'Global Interaction' failed. Elapsed: {ElapsedTime}. Memory: {MemoryInUse}.", watch.Elapsed, GC.GetTotalMemory(forceFullCollection: false));
+                    throw;
+                }
             }
         }
 

@@ -37,9 +37,9 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         public static IFhirServerBuilder AddMongoDb(
             this IFhirServerBuilder fhirServerBuilder,
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning disable CS8625
             Action<MongoDataStoreConfiguration> configureAction = null)
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning restore CS8625
         {
             EnsureArg.IsNotNull(fhirServerBuilder, nameof(fhirServerBuilder));
 
@@ -61,9 +61,9 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static IFhirServerBuilder AddMongoDbPersistance(
             this IFhirServerBuilder fhirServerBuilder,
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning disable CS8625
             Action<MongoDataStoreConfiguration> configureAction = null)
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+#pragma warning restore CS8625
         {
             IServiceCollection services = fhirServerBuilder.Services;
 
@@ -77,9 +77,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.Add(provider =>
             {
                 var config = new MongoDataStoreConfiguration();
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8602
                 provider.GetService<IConfiguration>().GetSection("MongoDb").Bind(config);
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8602
                 configureAction?.Invoke(config);
                 return config;
             })
@@ -95,6 +95,11 @@ namespace Microsoft.Extensions.DependencyInjection
             // IConfigureOptions<CosmosCollectionConfiguration>>
 
             services.Add<MongoFhirDataStore>()
+                .Scoped()
+                .AsSelf()
+                .AsImplementedInterfaces();
+
+            services.Add<MongoDbTransactionHandler>()
                 .Scoped()
                 .AsSelf()
                 .AsImplementedInterfaces();
