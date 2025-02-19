@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Health.Fhir.MongoDb.Configs
 {
+    /// <summary>
+    /// This class was part of the initial structure ported from Cosmos/SQL Drivers.  It can go away.
+    /// </summary>
     public class MongoCollectionConfiguration
     {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

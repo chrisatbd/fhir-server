@@ -14,9 +14,12 @@ using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Health.Fhir.MongoDb.Extensions
 {
+    /// <summary>
+    /// Extensions for BsonDocuments
+    /// this needs some work but is a start.
+    /// </summary>
     internal static class BsonDocumentExtensions
     {
-        // this needs some work but is a start.
         public static JObject ToJObject(this BsonDocument document)
         {
             return JObject.Parse(document.ToJson());

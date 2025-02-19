@@ -14,12 +14,21 @@ using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Health.Fhir.MongoDb.Extensions
 {
+    /// <summary>
+    /// JObjectExtensions
+    /// </summary>
     internal static class JObjectExtensions
     {
-        // this can be sped up at some point in the future
-        // https://stackoverflow.com/questions/62080252/convert-newtosoft-jobject-directly-to-bsondocument
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         public static BsonDocument ToBsonDocument(this JObject obj)
         {
+            // TODOCJH: this can be sped up at some point in the future
+            // https://stackoverflow.com/questions/62080252/convert-newtosoft-jobject-directly-to-bsondocument
+
             var document = BsonSerializer.Deserialize<BsonDocument>(obj.ToString());
             return document;
         }

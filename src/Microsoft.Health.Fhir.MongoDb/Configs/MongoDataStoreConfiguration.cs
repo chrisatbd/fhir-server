@@ -25,8 +25,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Configs
 
             if (resourceTypeName != null)
             {
-                // forced on purpose, see above.
-
+                // BUGCJH: forced on purpose, see above.
                 collectionName = resourceTypeName;
                 collectionName = "resource";
             }

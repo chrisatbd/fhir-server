@@ -70,6 +70,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             _coreFeatures = coreFeatures.Value;
         }
 
+        /// <summary>
+        /// Builds the compatability statement for our FHIR server
+        /// </summary>
+        /// <param name="builder"></param>
         public void Build(ICapabilityStatementBuilder builder)
         {
             EnsureArg.IsNotNull(builder, nameof(builder));
@@ -89,7 +93,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
                 throw;
             }
 
-            // NOTECJH:  For batch and transaction interesting the implementation between sql and cosmos
+            // NOTECJH:  For batch and transaction intersecting
+            // the implementation between sql and cosmos
 
             if (_coreFeatures.SupportsBatch)
             {
@@ -155,7 +160,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             var isRawResourceMetaSet = true;
 
             /*
-            TODO:  Need to review These
+            TODO:  Need to review these
             var searchParamHash = reader.Read(VLatest.Resource.SearchParamHash, 8);
             var requestMethod = readRequestMethod ? reader.Read(VLatest.Resource.RequestMethod, 9) : null;
             var resourceSurrogateId = 5108658606258160320;
@@ -202,7 +207,13 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             throw new NotImplementedException();
         }
 
-        // HardDeleteAsync
+        /// <summary>
+        /// HardDeleteAsync
+        /// </summary>
+        /// <param name="key">resource key to delete</param>
+        /// <param name="keepCurrentVersion">not implemented</param>
+        /// <param name="cancellationToken">the async cancellation token</param>
+        /// <returns>DeleteResult</returns>
         public async Task HardDeleteAsync(ResourceKey key, bool keepCurrentVersion, CancellationToken cancellationToken)
         {
             var resourceType = key.ResourceType;
@@ -296,11 +307,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         private BsonArray GetSearchIndexes(IReadOnlyCollection<SearchIndexEntry> searchIndices)
         {
 #pragma warning restore CA1822
-            /*
-             * TODOCJH: To get up and running with the Search Expression Builder just dump the entirety
-             * of the search indexes into a property of the document.  At some point we will want to come back and
-             * start refining this
-             */
 
             BsonArray indexes = new BsonArray();
 
@@ -312,7 +318,13 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             return indexes;
         }
 
-        // we can land here on a 'POST' a 'PUT' and 'DELETE'
+        /// <summary>
+        /// we can land here on a 'POST' a 'PUT' and 'DELETE'
+        /// </summary>
+        /// <param name="resource">Resource to upsert</param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <returns>UpsertOutcome</returns>
+        /// <exception cref="NotImplementedException">bundle operation not supported</exception>        
         public async Task<UpsertOutcome> UpsertAsync(ResourceWrapperOperation resource, CancellationToken cancellationToken)
         {
             bool isBundleOperation = _bundleOrchestrator.IsEnabled && resource.BundleResourceContext != null;
