@@ -908,6 +908,15 @@ namespace Microsoft.Health.Fhir.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The provided search parameter type {0} is not supported for the given expression {1}..
+        /// </summary>
+        internal static string NoConverterForSearchParamType {
+            get {
+                return ResourceManager.GetString("NoConverterForSearchParamType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to No resources were found matching the type of the updated search parameters needing to be reindexed.  ReindexJob marked completed..
         /// </summary>
         internal static string NoResourcesNeedToBeReindexed {
@@ -985,6 +994,15 @@ namespace Microsoft.Health.Fhir.Core {
         internal static string OperationFailed {
             get {
                 return ResourceManager.GetString("OperationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error occurred during an operation that is dependent on the customer-managed key. Use https://go.microsoft.com/fwlink/?linkid=2300268 to troubleshoot the issue..
+        /// </summary>
+        internal static string OperationFailedForCustomerManagedKey {
+            get {
+                return ResourceManager.GetString("OperationFailedForCustomerManagedKey", resourceCulture);
             }
         }
         
@@ -1147,6 +1165,15 @@ namespace Microsoft.Health.Fhir.Core {
         internal static string ReindexMultipleTargetsNotSupported {
             get {
                 return ResourceManager.GetString("ReindexMultipleTargetsNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A Reindex job is currenlty active. Search parameters cannot be updated until Reindex is complete..
+        /// </summary>
+        internal static string ReindexRunning {
+            get {
+                return ResourceManager.GetString("ReindexRunning", resourceCulture);
             }
         }
         
@@ -1570,6 +1597,15 @@ namespace Microsoft.Health.Fhir.Core {
         internal static string SqlQueryProcessorRanOutOfInternalResourcesException {
             get {
                 return ResourceManager.GetString("SqlQueryProcessorRanOutOfInternalResourcesException", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The number of included results exceeded the limit of {0}.
+        /// </summary>
+        internal static string TooManyIncludeResults {
+            get {
+                return ResourceManager.GetString("TooManyIncludeResults", resourceCulture);
             }
         }
         

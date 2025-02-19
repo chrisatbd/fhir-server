@@ -750,4 +750,18 @@
   <data name="OperationFailedWithErrorFile" xml:space="preserve">
     <value>{0} operation failed for reason: {1} ErrorFile: {2}</value>
   </data>
+  <data name="NoConverterForSearchParamType" xml:space="preserve">
+    <value>The provided search parameter type {0} is not supported for the given expression {1}.</value>
+    <comment>{0}: The type field in the search parameter. {1}: The expression field in the search parameter.</comment>
+  </data>
+  <data name="OperationFailedForCustomerManagedKey" xml:space="preserve">
+    <value>Error occurred during an operation that is dependent on the customer-managed key. Use https://go.microsoft.com/fwlink/?linkid=2300268 to troubleshoot the issue.</value>
+  </data>
+  <data name="ReindexRunning" xml:space="preserve">
+    <value>A Reindex job is currenlty active. Search parameters cannot be updated until Reindex is complete.</value>
+  </data>
+  <data name="TooManyIncludeResults" xml:space="preserve">
+    <value>The number of included results exceeded the limit of {0}</value>
+    <comment>{0} is the limit of how many include results the service will return.</comment>
+  </data>
 </root>
