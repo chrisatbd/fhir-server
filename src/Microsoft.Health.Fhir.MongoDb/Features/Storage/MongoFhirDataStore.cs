@@ -34,9 +34,10 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Newtonsoft.Json.Linq;
-using SemVer;
 using static System.Net.Mime.MediaTypeNames;
 using static DotLiquid.Variable;
+
+// using SemVer;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 {
@@ -73,7 +74,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         /// <summary>
         /// Builds the compatability statement for our FHIR server
         /// </summary>
-        /// <param name="builder"></param>
+        /// <param name="builder">ICapabilityStatementBuilder</param>
         public void Build(ICapabilityStatementBuilder builder)
         {
             EnsureArg.IsNotNull(builder, nameof(builder));
@@ -324,7 +325,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         /// <param name="resource">Resource to upsert</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>UpsertOutcome</returns>
-        /// <exception cref="NotImplementedException">bundle operation not supported</exception>        
+        /// <exception cref="NotImplementedException">bundle operation not supported</exception>
         public async Task<UpsertOutcome> UpsertAsync(ResourceWrapperOperation resource, CancellationToken cancellationToken)
         {
             bool isBundleOperation = _bundleOrchestrator.IsEnabled && resource.BundleResourceContext != null;

@@ -20,10 +20,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Extensions
     internal static class JObjectExtensions
     {
         /// <summary>
-        /// 
+        /// Converts a JObject to a BsonDocument
         /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
+        /// <param name="obj">JObject</param>
+        /// <returns>BsonDocument</returns>
         public static BsonDocument ToBsonDocument(this JObject obj)
         {
             // TODOCJH: this can be sped up at some point in the future

@@ -26,7 +26,8 @@ using Microsoft.Health.Fhir.MongoDb.Features.Storage;
 using Microsoft.Health.Fhir.ValueSets;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using SemVer;
+
+// using SemVer;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 {
