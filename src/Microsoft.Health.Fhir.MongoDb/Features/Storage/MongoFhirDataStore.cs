@@ -328,10 +328,16 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         /// <exception cref="NotImplementedException">bundle operation not supported</exception>
         public async Task<UpsertOutcome> UpsertAsync(ResourceWrapperOperation resource, CancellationToken cancellationToken)
         {
-            bool isBundleOperation = _bundleOrchestrator.IsEnabled && resource.BundleResourceContext != null;
+            bool isBundleParallelOperation =
+                _bundleOrchestrator.IsEnabled &&
+                resource.BundleResourceContext != null &&
+                resource.BundleResourceContext.IsParallelBundle;
 
-            if (isBundleOperation)
+            if (isBundleParallelOperation)
             {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                IBundleOrchestratorOperation operation = _bundleOrchestrator.GetOperation(resource.BundleResourceContext.BundleOperationId);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
                 throw new NotImplementedException();
             }
 
