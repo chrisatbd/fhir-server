@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EnsureThat;
 using Hl7.Fhir.ElementModel.Types;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Health.Fhir.Api;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
 using Microsoft.Health.Fhir.Core.Features.Search;
@@ -74,37 +75,40 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         public BsonDocument GetFilters()
         {
 #pragma warning disable CS8603
-            Console.WriteLine(_queryAssembler.RenderFilters().ToString());
             return _queryAssembler.RenderFilters();
 #pragma warning restore CS8603
         }
 
+        // generates
         public object? VisitBinary(BinaryExpression expression, ExpressionQueryBuilderContext context)
         {
-            string fieldName = GetFieldName(expression);
-            string field = $"Value.{fieldName}";
+            string field = $"Value.{GetFieldName(expression)}";
 
-            // so this note is around while we are thinking about birthdate.
-            // How do we want to handle.  If we want to do it as a string
-            // it could get ugly
-
-            BsonValue? val = null;
+            BsonValue value;
 
             if (expression.Value is decimal dv)
             {
-                val = BsonDecimal128.Create(dv);
+                value = BsonDecimal128.Create(dv);
             }
-            else if (expression.Value is System.DateTimeOffset dto)
+            else if (expression.Value is System.DateTimeOffset)
             {
-                var datetime = new BsonDateTime(dto.DateTime);
-                val = datetime;
+                var dto = (System.DateTimeOffset)expression.Value;
+                value = new BsonDateTime(dto.DateTime);
+            }
+            else if (expression.Value is string sv)
+            {
+                value = sv;
             }
             else
             {
-                val = expression.Value.ToString();
+                throw new NotSupportedException($"{expression.Value}");
             }
 
-            _queryAssembler.AddCondition(new BsonDocument(field, new BsonDocument(GetMappedValue(BinaryOperatorMapping, expression.BinaryOperator), val)));
+            _queryAssembler.AddCondition(new BsonDocument(
+                field,
+                new BsonDocument(
+                    GetMappedValue(BinaryOperatorMapping, expression.BinaryOperator),
+                    value)));
 
             return null;
         }
@@ -138,10 +142,14 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                     }
             }
 
+            _queryAssembler.PushMultiaryOperator(op);
+
             for (int i = 0; i < expressions.Count; i++)
             {
                 expressions[i].AcceptVisitor(this, context);
             }
+
+            _queryAssembler.PopMultiaryOperator();
 
             return null;
         }
@@ -151,23 +159,22 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             switch (expression.Parameter.Code)
             {
                 case SearchParameterNames.ResourceType:
-
                     _queryAssembler
-                        .AddFilter(new BsonDocument($"{FieldNameConstants.Resource}.{FieldNameConstants.ResourceType}", ((StringExpression)expression.Expression).Value));
+                        .AddFilter(
+                        new BsonDocument(
+                            $"{FieldNameConstants.Resource}.{FieldNameConstants.ResourceType}",
+                            ((StringExpression)expression.Expression).Value));
 
                     break;
                 case SearchParameterNames.Id:
                     // expression.Expression.AcceptVisitor(this, context.WithFieldNameOverride((n, i) => KnownResourceWrapperProperties.ResourceId));
-
-                    break;
+                    throw new NotImplementedException();
                 case SearchParameterNames.LastUpdated:
                     // For LastUpdate queries, the LastModified property on the root is
                     // more performant than the searchIndices _lastUpdated.st and _lastUpdate.et
                     // we will override the mapping for that
-
                     // expression.Expression.AcceptVisitor(this, context.WithFieldNameOverride((n, i) => SearchValueConstants.LastModified));
-
-                    break;
+                    throw new NotImplementedException();
                 case SearchValueConstants.WildcardReferenceSearchParameterName:
                     // This is an internal search parameter that matches any reference search parameter.
                     // It is used for wildcard revinclude queries
@@ -190,92 +197,103 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         }
 
         // AppendSubquery
-        private void AppendSubquery(SearchParameterExpression expression, ExpressionQueryBuilderContext context, bool negate = false)
+        private void AppendSubquery(
+            SearchParameterExpression expression,
+            ExpressionQueryBuilderContext context,
+            bool negate = false)
         {
             _queryAssembler.StartNewFilter();
 
             if (expression.Expression != null)
             {
-                _queryAssembler.AddCondition(new BsonDocument($"{FieldNameConstants.SearchParameter}.{FieldNameConstants.SearchParameterCode}", expression.Parameter.Code));
+                _queryAssembler.AddCondition(
+                    new BsonDocument(
+                        $"{FieldNameConstants.SearchParameter}.{FieldNameConstants.SearchParameterCode}",
+                        expression.Parameter.Code));
+
                 expression.Expression.AcceptVisitor(this, context);
             }
 
             _queryAssembler.PushFilter();
         }
 
+        // GetFieldName
         private static string GetFieldName(IFieldExpression field)
         {
-            // field.FieldName;
-            string fieldName = field.FieldName.ToString();
-
-            // if (FieldNameMapping.TryGetValue(field.FieldName, out string value))
-            // {
-            //  fieldName = value;
-            // }
-
-            // string fieldName = field.FieldName.ToString();
-
-            if (fieldName == "TokenCode")
+            if (FieldNameMapping.TryGetValue(field.FieldName, out string? value))
             {
-                fieldName = "Code";
+                if (value == null)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return value;
             }
 
-            if (fieldName == "TokenSystem")
-            {
-                fieldName = "System";
-            }
-
-            if (fieldName == "ReferenceResourceType")
-            {
-                fieldName = "ResourceType";
-            }
-
-            if (fieldName == "ReferenceResourceId")
-            {
-                fieldName = "ResourceId";
-            }
-
-            if (fieldName == "DateTimeStart")
-            {
-                fieldName = "Start";
-            }
-
-            if (fieldName == "DateTimeEnd")
-            {
-                fieldName = "End";
-            }
-
-            return fieldName;
+            throw new InvalidOperationException();
         }
 
+        // VisitString
         public object? VisitString(StringExpression expression, ExpressionQueryBuilderContext context)
         {
-            string fieldName = GetFieldName(expression);
+            string field = $"Value.{GetFieldName(expression)}";
 
-            string field = $"Value.{fieldName}";
+            BsonValue? value = null;
 
             if (expression.StringOperator == StringOperator.StartsWith)
             {
-                _queryAssembler
-                    .AddCondition(new BsonDocument(field, new BsonRegularExpression("^" + expression.Value + ".*")));
+                value = new BsonRegularExpression("^" + expression.Value + ".*");
             }
             else if (expression.StringOperator == StringOperator.Equals)
             {
-                _queryAssembler
-                    .AddCondition(new BsonDocument(field, expression.Value));
+                // ok, so if we are going to use $not in our mongo queries we are going to have to work with the value
+                // { "SearchParameter.Code" : "gender", "Value.Code" : {$not: {$eq:"male"} } }}}
+                // { "SearchParameter.Code" : "gender", "Value.Code" : "male" }}}
+                // { "SearchParameter.Code" : "gender", "Value.Code" : {$eq:"male"} }}}
+
+                value = new BsonDocument("$eq", expression.Value);
+
+                // value = expression.Value;
             }
             else if (expression.StringOperator == StringOperator.Contains)
             {
-                _queryAssembler.
-                    AddCondition(new BsonDocument(field, new BsonRegularExpression(expression.Value)));
+                value = new BsonRegularExpression("/" + expression.Value + "/");
             }
             else
             {
-                _queryAssembler
-                    .AddCondition(new BsonDocument(field, expression.Value));
+                /*
+                EndsWith,
+                NotContains,
+                NotEndsWith,
+                NotStartsWith,
+                LeftSideStartsWith,
+                */
+
+                throw new InvalidOperationException($"{expression.StringOperator}");
             }
 
+            _queryAssembler.
+                AddCondition(new BsonDocument(field, value));
+
             return null;
+        }
+
+        public object? VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
+        {
+            /* from Cosmos
+                _queryBuilder.Append("NOT (");
+                expression.Expression.AcceptVisitor(this, context);
+                _queryBuilder.Append(')');
+                return null;
+            */
+            // _queryAssembler.
+            _queryAssembler.PushNegation();
+            expression.Expression.AcceptVisitor(this, context);
+            _queryAssembler.PopNegation();
+
+            return null;
+
+            // throw new NotImplementedException();
         }
 
         public object VisitUnion(UnionExpression expression, ExpressionQueryBuilderContext context)
@@ -308,9 +326,24 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             throw new NotImplementedException();
         }
 
-        public object VisitMissingSearchParameter(MissingSearchParameterExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitMissingSearchParameter(MissingSearchParameterExpression expression, ExpressionQueryBuilderContext context)
         {
-            throw new NotImplementedException();
+            if (expression.Parameter.Code == SearchParameterNames.ResourceType)
+            {
+                throw new NotImplementedException();
+            }
+
+            var arr = new BsonArray
+            {
+                new BsonString(expression.Parameter.Code),
+            };
+
+            _queryAssembler.AddFilter(
+                new BsonDocument(
+                    $"{FieldNameConstants.SearchIndexes}.{FieldNameConstants.SearchParameter}.{FieldNameConstants.SearchParameterCode}",
+                    new BsonDocument("$nin", arr)));
+
+            return null;
         }
 
         public object VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
@@ -323,7 +356,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             throw new NotImplementedException();
         }
 
-        public object VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitNotReferenced(NotReferencedExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }

@@ -12,7 +12,6 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.Runtime.Internal.Transform;
 using Azure.Core;
 using EnsureThat;
 using Microsoft.Extensions.Logging;
@@ -240,9 +239,16 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
         }
 
         // does the actual work of merging or creating new if the old one does not exist
-        internal async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeInternalAsync(IReadOnlyList<ResourceWrapperOperation> resources, bool keepLastUpdated, bool keepAllDeleted, bool enlistInTransaction, bool useReplicasForReads, CancellationToken cancellationToken)
+        internal async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeInternalAsync(
+            IReadOnlyList<ResourceWrapperOperation> resources,
+            bool keepLastUpdated,
+            bool keepAllDeleted,
+            bool enlistInTransaction,
+            bool useReplicasForReads,
+            CancellationToken cancellationToken)
         {
             var results = new Dictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>();
+
             if (resources == null || resources.Count == 0)
             {
                 return results;
@@ -259,16 +265,21 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 
                 if (existingResource == null)
                 {
-                    string text = resourceExt.Wrapper.RawResource.Data;
-
                     var doc = new JObject
                     {
-                        { FieldNameConstants.Resource, JToken.Parse(text) },
+                        {
+                            FieldNameConstants.Resource,
+                            JToken.Parse(resourceExt.Wrapper.RawResource.Data)
+                        },
                     };
 
-                    var document = doc.ToBsonDocument();
+                    BsonDocument document = doc.ToBsonDocument();
+
                     document.Add(FieldNameConstants.IsDeleted, false);
-                    document.AddRange(new BsonDocument(FieldNameConstants.SearchIndexes, GetSearchIndexes(resourceExt.Wrapper.SearchIndices)));
+
+                    document.AddRange(new BsonDocument(
+                        FieldNameConstants.SearchIndexes,
+                        GetSearchIndexes(resourceExt.Wrapper.SearchIndices)));
 
                     await _dataStoreConfiguration
                         .GetCollection()
@@ -286,18 +297,22 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 
                     string text = resourceExt.Wrapper.RawResource.Data;
 
-                    var filter = Builders<BsonDocument>.Filter.Eq($"{FieldNameConstants.Resource}.{FieldNameConstants.Id}", resource.ResourceId);
+                    FilterDefinition<BsonDocument> filter = Builders<BsonDocument>
+                        .Filter
+                        .Eq($"{FieldNameConstants.Resource}.{FieldNameConstants.Id}", resource.ResourceId);
 
-                    var update = Builders<BsonDocument>.Update
+                    UpdateDefinition<BsonDocument> update = Builders<BsonDocument>.Update
                         .Set(FieldNameConstants.Resource, JObject.Parse(text).ToBsonDocument())
                         .Set(FieldNameConstants.SearchIndexes, GetSearchIndexes(resourceExt.Wrapper.SearchIndices))
                         .Set(FieldNameConstants.IsDeleted, resourceExt.Wrapper.IsDeleted);
 
-                    var updateResult = await _dataStoreConfiguration
+                    UpdateResult updateResult = await _dataStoreConfiguration
                         .GetCollection()
                         .UpdateOneAsync(filter, update, null, cancellationToken);
 
-                    results.Add(identifier, new DataStoreOperationOutcome(new UpsertOutcome(resourceExt.Wrapper, SaveOutcomeType.Updated)));
+                    results.Add(
+                        identifier,
+                        new DataStoreOperationOutcome(new UpsertOutcome(resourceExt.Wrapper, SaveOutcomeType.Updated)));
                 }
             }
 

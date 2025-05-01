@@ -120,13 +120,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 job.AsDelegate<Func<IJob>>();
             }
 
+            // BUGCJH:  Investigate.
             // leave at the bottom
-            services
-                .RemoveServiceTypeExact<LegacyExportJobWorker, INotificationHandler<StorageInitializedNotification>>()
-                .Add<LegacyExportJobWorker>()
-                .Singleton()
-                .AsSelf()
-                .AsService<INotificationHandler<StorageInitializedNotification>>();
+            // services
+            //    .RemoveServiceTypeExact<LegacyExportJobWorker, INotificationHandler<StorageInitializedNotification>>()
+            //    .Add<LegacyExportJobWorker>()
+            //    .Singleton()
+            //    .AsSelf()
+            //    .AsService<INotificationHandler<StorageInitializedNotification>>();
 
             return fhirServerBuilder;
         }

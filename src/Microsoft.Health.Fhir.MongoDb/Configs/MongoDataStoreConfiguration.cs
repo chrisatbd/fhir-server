@@ -32,7 +32,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Configs
 
             var connectionString = ConnectionString;
 
+#pragma warning disable CA2000
             var client = new MongoClient(connectionString);
+#pragma warning restore CA2000
 
             var collection = client
                 .GetDatabase("fhir")

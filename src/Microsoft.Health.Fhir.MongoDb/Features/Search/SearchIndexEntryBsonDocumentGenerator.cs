@@ -85,7 +85,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
             BsonDocument searchParams = BsonSerializer.Deserialize<BsonDocument>(sp);
 
-            // TODOCJH:  Just some simple ' property trimming' for now
+            // TODOCJH:  Just some simple 'property trimming' for now
             searchParams.Remove("Description");
             searchParams.Remove("TargetResourceTypes");
             searchParams.Remove("BaseResourceTypes");

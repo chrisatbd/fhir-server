@@ -27,10 +27,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
         // returns a BSON document containing the assembled filter specification from the
         // search option expressions
-        public BsonDocument BuildFilterSpec(SearchOptions searchOptions, QueryBuilderOptions queryOptions)
+        public BsonDocument BuildFilterSpec(SearchOptions searchOptions)
         {
             EnsureArg.IsNotNull(searchOptions, nameof(searchOptions));
-            EnsureArg.IsNotNull(queryOptions, nameof(queryOptions));
 
             var expressionQueryBuilder = new ExpressionQueryBuilder(_queryParameterManager);
 

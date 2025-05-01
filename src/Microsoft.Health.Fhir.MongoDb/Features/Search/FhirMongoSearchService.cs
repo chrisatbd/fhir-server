@@ -69,18 +69,23 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             throw new NotImplementedException();
         }
 
+        // this is the Search Implementation entrypoint
         private async Task<SearchResult> SearchImpl(SearchOptions searchOptions, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("SearchImpl");
-
             var filter = _queryBuilder.BuildFilterSpec(searchOptions);
+
+            _logger.LogDebug(filter.ToString());
+
+            // TODOCJH:  Is this a candidate for yield ? we are getting list of documents,
+            // then making a list of search entries
+            // then returning.
 
             var documents = await _dataStoreConfiguration
                 .GetCollection()
                 .Find(filter)
                 .ToListAsync(cancellationToken);
 
-            List<SearchResultEntry> resultEntries = new List<SearchResultEntry>();
+            List<SearchResultEntry> resultEntries = [];
 
             foreach (var entry in documents)
             {
@@ -89,9 +94,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 var isHistory = false;
                 var isRawResourceMetaSet = true;
 
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8600
                 string rawResource = entry[FieldNameConstants.Resource].ToString();
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning restore CS8600
 
                 var rm = new ResourceWrapper(
                     entry[FieldNameConstants.Resource][FieldNameConstants.Id].ToString(),
@@ -109,9 +114,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                     IsHistory = isHistory,
                 };
 
-                SearchResultEntry sre = new SearchResultEntry(rm);
-
-                resultEntries.Add(sre);
+                resultEntries.Add(new SearchResultEntry(rm));
             }
 
             return new SearchResult(
