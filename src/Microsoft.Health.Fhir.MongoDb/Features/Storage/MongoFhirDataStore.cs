@@ -36,14 +36,10 @@ using Newtonsoft.Json.Linq;
 using static System.Net.Mime.MediaTypeNames;
 using static DotLiquid.Variable;
 
-// using SemVer;
-
 namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 {
     public sealed class MongoFhirDataStore : IFhirDataStore, IProvideCapability
     {
-        // private const string InitialVersion = "1";
-
         private readonly ILogger<MongoFhirDataStore> _logger;
         private readonly RequestContextAccessor<IFhirRequestContext> _requestContextAccessor;
         private readonly IBundleOrchestrator _bundleOrchestrator;
@@ -149,13 +145,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             return listData.AsReadOnly();
         }
 
-        // Gets a FHIR resource
+        // Gets a FHIR resource by its Resource Key
         public async Task<ResourceWrapper> GetAsync(ResourceKey key, CancellationToken cancellationToken)
         {
             var resourceType = key.ResourceType;
             var resourceId = key.Id;
             var version = 1;
-            var isDeleted = false;
             var isHistory = false;
             var isRawResourceMetaSet = true;
 
@@ -169,8 +164,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             */
 
             // set up the filters
-            // TODOCJH:  Should we also filter on resource type
-            // TODOCJH:  Add checks for isdeleted, version , etc.
+            // TODOCJH:  Should we also filter on resource type,
+            // the resource.id should be sufficient and unique across the system
             var filter = Builders<BsonDocument>.Filter.Eq("resource.id", resourceId);
 
             var document = await _dataStoreConfiguration
@@ -189,10 +184,13 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
                 resourceId,
                 version.ToString(CultureInfo.InvariantCulture),
                 key.ResourceType,
-                new RawResource(document[FieldNameConstants.Resource].ToString(), FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
+                new RawResource(
+                    document[FieldNameConstants.Resource].ToString(),
+                    FhirResourceFormat.Json,
+                    isMetaSet: isRawResourceMetaSet),
                 null,
                 DateTimeOffset.Now,
-                isDeleted,
+                document[FieldNameConstants.IsDeleted].AsBoolean,
                 searchIndices: null,
                 compartmentIndices: null,
                 lastModifiedClaims: null,
@@ -219,22 +217,35 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
             var resourceType = key.ResourceType;
             var resourceId = key.Id;
 
-            var filter = Builders<BsonDocument>.Filter.Eq($"{FieldNameConstants.Resource}.{FieldNameConstants.Id}", resourceId);
+            var filter = Builders<BsonDocument>
+                .Filter
+                .Eq($"{FieldNameConstants.Resource}.{FieldNameConstants.Id}", resourceId);
 
             var deleteResults = await _dataStoreConfiguration
                 .GetCollection()
                 .DeleteOneAsync(filter, cancellationToken);
         }
 
-        public async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeAsync(IReadOnlyList<ResourceWrapperOperation> resources, CancellationToken cancellationToken)
+        public async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeAsync(
+            IReadOnlyList<ResourceWrapperOperation> resources,
+            CancellationToken cancellationToken)
         {
             return await MergeAsync(resources, MergeOptions.Default, cancellationToken);
         }
 
-        public async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeAsync(IReadOnlyList<ResourceWrapperOperation> resources, MergeOptions mergeOptions, CancellationToken cancellationToken)
+        public async Task<IDictionary<DataStoreOperationIdentifier, DataStoreOperationOutcome>> MergeAsync(
+            IReadOnlyList<ResourceWrapperOperation> resources,
+            MergeOptions mergeOptions,
+            CancellationToken cancellationToken)
         {
-            var retries = 0;
-            var results = await MergeInternalAsync(resources, false, false, mergeOptions.EnlistInTransaction, retries == 0, cancellationToken); // TODO: Pass correct retries value once we start supporting retries
+            var results = await MergeInternalAsync(
+                resources,
+                false,
+                false,
+                mergeOptions.EnlistInTransaction,
+                false,
+                cancellationToken); // TODO: Pass correct retries value once we start supporting retries
+
             return results;
         }
 

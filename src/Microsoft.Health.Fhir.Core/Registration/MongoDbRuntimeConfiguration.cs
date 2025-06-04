@@ -13,7 +13,9 @@ namespace Microsoft.Health.Fhir.Core.Registration
 
         public bool IsSelectiveSearchParameterSupported => false;
 
+#pragma warning disable CA1822 // Mark members as static
         public bool IsExportBackgroundWorkerSupported => true;
+#pragma warning restore CA1822 // Mark members as static
 
         public bool IsCustomerKeyValidationBackgroundWorkerSupported => false;
 

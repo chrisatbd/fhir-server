@@ -16,7 +16,6 @@ using Microsoft.Health.Fhir.Api;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
 using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.Core.Features.Search.Expressions;
-using Microsoft.Health.Fhir.MongoDb.Features.Queries;
 using Microsoft.Health.Fhir.MongoDb.Features.Storage;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -25,9 +24,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
     internal sealed class ExpressionQueryBuilder : IExpressionVisitorWithInitialContext<ExpressionQueryBuilderContext, object?>
     {
-        private readonly QueryParameterManager _queryParameterManager;
-        private readonly QueryAssembler _queryAssembler;
-
         private static readonly Dictionary<BinaryOperator, string> BinaryOperatorMapping = new Dictionary<BinaryOperator, string>()
         {
             { BinaryOperator.Equal, "$eg" },
@@ -59,25 +55,14 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             { FieldName.Uri, SearchValueConstants.UriName },
         };
 
-        internal ExpressionQueryBuilder(
-            QueryParameterManager queryParameterManager)
+        internal ExpressionQueryBuilder()
         {
-            EnsureArg.IsNotNull(queryParameterManager, nameof(queryParameterManager));
-
-            _queryParameterManager = queryParameterManager;
-            _queryAssembler = new QueryAssembler();
+            // _queryAssembler = new QueryAssembler();
         }
 
 #pragma warning disable CS8603
         public ExpressionQueryBuilderContext InitialContext => new ExpressionQueryBuilderContext();
 #pragma warning restore CS8603
-
-        public BsonDocument GetFilters()
-        {
-#pragma warning disable CS8603
-            return _queryAssembler.RenderFilters();
-#pragma warning restore CS8603
-        }
 
         // generates
         public object? VisitBinary(BinaryExpression expression, ExpressionQueryBuilderContext context)
@@ -104,7 +89,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 throw new NotSupportedException($"{expression.Value}");
             }
 
-            _queryAssembler.AddCondition(new BsonDocument(
+            context.Assembler.AddCondition(new BsonDocument(
                 field,
                 new BsonDocument(
                     GetMappedValue(BinaryOperatorMapping, expression.BinaryOperator),
@@ -142,14 +127,14 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                     }
             }
 
-            _queryAssembler.PushMultiaryOperator(op);
+            context.Assembler.PushMultiaryOperator(op);
 
             for (int i = 0; i < expressions.Count; i++)
             {
                 expressions[i].AcceptVisitor(this, context);
             }
 
-            _queryAssembler.PopMultiaryOperator();
+            context.Assembler.PopMultiaryOperator();
 
             return null;
         }
@@ -159,7 +144,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             switch (expression.Parameter.Code)
             {
                 case SearchParameterNames.ResourceType:
-                    _queryAssembler
+                    context.Assembler
                         .AddFilter(
                         new BsonDocument(
                             $"{FieldNameConstants.Resource}.{FieldNameConstants.ResourceType}",
@@ -180,16 +165,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                     // It is used for wildcard revinclude queries
                     throw new NotImplementedException();
                 default:
-                    // TODOCJH:  Review NotExpression notExpression expressions
-                    if (expression.Expression is NotExpression notExpression)
-                    {
-                        AppendSubquery(expression, context, true);
-                    }
-                    else
-                    {
-                        AppendSubquery(expression, context);
-                    }
-
+                    // TODOCJH:  Review NotExpression notExpression expressions as expressed in Cosmos
+                    AppendFilter(expression, context);
                     break;
             }
 
@@ -197,16 +174,15 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         }
 
         // AppendSubquery
-        private void AppendSubquery(
+        private void AppendFilter(
             SearchParameterExpression expression,
-            ExpressionQueryBuilderContext context,
-            bool negate = false)
+            ExpressionQueryBuilderContext context)
         {
-            _queryAssembler.StartNewFilter();
+            context.Assembler.StartNewFilter();
 
             if (expression.Expression != null)
             {
-                _queryAssembler.AddCondition(
+                context.Assembler.AddCondition(
                     new BsonDocument(
                         $"{FieldNameConstants.SearchParameter}.{FieldNameConstants.SearchParameterCode}",
                         expression.Parameter.Code));
@@ -214,7 +190,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 expression.Expression.AcceptVisitor(this, context);
             }
 
-            _queryAssembler.PushFilter();
+            context.Assembler.PushFilter();
         }
 
         // GetFieldName
@@ -222,6 +198,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         {
             if (FieldNameMapping.TryGetValue(field.FieldName, out string? value))
             {
+                // TODOCJH:  Can we get here ?  We would not have a field name with a null in the
+                // dictionary
                 if (value == null)
                 {
                     throw new InvalidOperationException();
@@ -246,14 +224,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             }
             else if (expression.StringOperator == StringOperator.Equals)
             {
-                // ok, so if we are going to use $not in our mongo queries we are going to have to work with the value
-                // { "SearchParameter.Code" : "gender", "Value.Code" : {$not: {$eq:"male"} } }}}
-                // { "SearchParameter.Code" : "gender", "Value.Code" : "male" }}}
-                // { "SearchParameter.Code" : "gender", "Value.Code" : {$eq:"male"} }}}
+                // TODOCJH: at some point do we want to look at a string version of BinaryOperatorMapping
+                // not sure how it fits into the string operator, but would remove the '$eq' literal
 
                 value = new BsonDocument("$eq", expression.Value);
-
-                // value = expression.Value;
             }
             else if (expression.StringOperator == StringOperator.Contains)
             {
@@ -272,7 +246,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 throw new InvalidOperationException($"{expression.StringOperator}");
             }
 
-            _queryAssembler.
+            context.Assembler.
                 AddCondition(new BsonDocument(field, value));
 
             return null;
@@ -280,20 +254,13 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
         public object? VisitNotExpression(NotExpression expression, ExpressionQueryBuilderContext context)
         {
-            /* from Cosmos
-                _queryBuilder.Append("NOT (");
-                expression.Expression.AcceptVisitor(this, context);
-                _queryBuilder.Append(')');
-                return null;
-            */
-            // _queryAssembler.
-            _queryAssembler.PushNegation();
+            context.Assembler.PushNegation();
+
             expression.Expression.AcceptVisitor(this, context);
-            _queryAssembler.PopNegation();
+
+            context.Assembler.PopNegation();
 
             return null;
-
-            // throw new NotImplementedException();
         }
 
         public object VisitUnion(UnionExpression expression, ExpressionQueryBuilderContext context)
@@ -338,7 +305,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 new BsonString(expression.Parameter.Code),
             };
 
-            _queryAssembler.AddFilter(
+            context.Assembler.AddFilter(
                 new BsonDocument(
                     $"{FieldNameConstants.SearchIndexes}.{FieldNameConstants.SearchParameter}.{FieldNameConstants.SearchParameterCode}",
                     new BsonDocument("$nin", arr)));
@@ -346,12 +313,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             return null;
         }
 
-        public object VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitSmartCompartment(SmartCompartmentSearchExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }
 
-        public object VisitSortParameter(SortExpression expression, ExpressionQueryBuilderContext context)
+        public object? VisitSortParameter(SortExpression expression, ExpressionQueryBuilderContext context)
         {
             throw new NotImplementedException();
         }

@@ -13,34 +13,15 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
     {
         private BsonDocument _inProcessFilter = new BsonDocument();
         private BsonArray _inProcessConditions = new BsonArray();
-
-        private Stack<Tuple<MultiaryOperator, BsonArray>> _stack = new();
-
+        private Stack<Tuple<MultiaryOperator, BsonArray>> _multiaryOperatorStack = new();
         private MultiaryOperator? _root = null;
-
-        private int _notCounter = 0;
+        private int _negationCount = 0;
 
         public QueryAssembler()
         {
         }
 
-        private List<BsonDocument> Filters { get; } = new List<BsonDocument>();
-
-        public BsonDocument RenderFilters()
-        {
-            // var documentSerializer = BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>();
-
-#pragma warning disable CS0618
-#pragma warning disable CS8602
-            BsonArray arr = [.. Filters];
-
-            arr.Add(new BsonDocument(FieldNameConstants.IsDeleted, false));
-
-            BsonDocument doc = new BsonDocument("$and", arr);
-            return doc;
-#pragma warning restore CS8602
-#pragma warning restore CS0618
-        }
+        private List<BsonDocument> Filters { get; } = [];
 
         public void StartNewFilter()
         {
@@ -57,18 +38,19 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             }
 
             var stackty = new Tuple<MultiaryOperator, BsonArray>(op, new BsonArray());
-            _stack.Push(stackty);
+            _multiaryOperatorStack.Push(stackty);
         }
 
         public void PopMultiaryOperator()
         {
             // if stack is 0 we are at the bottom, and only the root remains
+            // TODOCJH:  Add constants for "$or" and "$and"
 
-            if (_stack.Count > 0)
+            if (_multiaryOperatorStack.Count > 0)
             {
                 BsonDocument matchConditions = new BsonDocument();
 
-                Tuple<MultiaryOperator, BsonArray> arr = _stack.Pop();
+                Tuple<MultiaryOperator, BsonArray> arr = _multiaryOperatorStack.Pop();
 
                 if (arr.Item1 == MultiaryOperator.Or)
                 {
@@ -85,16 +67,16 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
         public void AddCondition(BsonDocument condition)
         {
-            if (_notCounter > 0)
+            if (_negationCount > 0)
             {
                 condition = new BsonDocument(
                     condition.Names.First(),
                     new BsonDocument("$not", condition.Values.First()));
             }
 
-            if (_stack.Count > 0)
+            if (_multiaryOperatorStack.Count > 0)
             {
-                _stack.Peek().Item2.Add(condition);
+                _multiaryOperatorStack.Peek().Item2.Add(condition);
             }
             else
             {
@@ -104,12 +86,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
         public void PushNegation()
         {
-            _notCounter++;
+            _negationCount++;
         }
 
         public void PopNegation()
         {
-            _notCounter--;
+            _negationCount--;
         }
 
         public void PushFilter()
@@ -131,6 +113,25 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         public void AddFilter(BsonDocument filter)
         {
             Filters.Add(filter);
+        }
+
+        // Renders the filters into a BsonDocument that is submitted to the MongoEngine to
+        // satisfy the query
+        public BsonDocument RenderFilters()
+        {
+#pragma warning disable CS0618
+#pragma warning disable CS8602
+            BsonArray arr = [.. Filters];
+
+            // NOTECJH: do not include deleted resource records.  Would there be a need
+            // to have this be configurable ?
+            arr.Add(new BsonDocument(FieldNameConstants.IsDeleted, false));
+
+            // $and is (should be) the _root
+            return new BsonDocument("$and", arr);
+
+#pragma warning restore CS8602
+#pragma warning restore CS0618
         }
     }
 }

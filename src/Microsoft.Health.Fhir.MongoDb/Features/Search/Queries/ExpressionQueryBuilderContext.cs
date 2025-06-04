@@ -14,7 +14,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
     internal sealed class ExpressionQueryBuilderContext
     {
-        public QueryAssembler? Assembler { get; set; } = null;
+        public QueryAssembler Assembler { get; set; } = new QueryAssembler();
 
 #pragma warning disable SA1201
         public ExpressionQueryBuilderContext()
@@ -22,5 +22,11 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
         }
 #pragma warning restore SA1201
 
+        public BsonDocument GetFilters()
+        {
+#pragma warning disable CS8603
+            return Assembler.RenderFilters();
+#pragma warning restore CS8603
+        }
     }
 }

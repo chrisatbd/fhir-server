@@ -4,9 +4,12 @@
 // -------------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Globalization;
+using EnsureThat;
+using Microsoft.Extensions.Primitives;
+using Microsoft.Health.Core.Features.Context;
+using Microsoft.Health.Fhir.Core.Features;
+using Microsoft.Health.Fhir.Core.Features.Context;
 using Microsoft.Health.Fhir.Core.Features.Search;
 using Microsoft.Health.Fhir.Core.Models;
 
@@ -17,9 +20,45 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
     internal class MongoDbSortingValidator : ISortingValidator
     {
+        private readonly RequestContextAccessor<IFhirRequestContext> _contextAccessor;
+
+        public MongoDbSortingValidator(RequestContextAccessor<IFhirRequestContext> contextAccessor)
+        {
+            EnsureArg.IsNotNull(contextAccessor, nameof(contextAccessor));
+            _contextAccessor = contextAccessor;
+        }
+
         public bool ValidateSorting(IReadOnlyList<(SearchParameterInfo searchParameter, SortOrder sortOrder)> sorting, out IReadOnlyList<string> errorMessages)
         {
-            throw new NotImplementedException();
+            EnsureArg.IsNotNull(sorting, nameof(sorting));
+
+            switch (sorting)
+            {
+                case { Count: 0 }:
+                case { Count: 1 } when sorting[0] is { searchParameter: { Code: KnownQueryParameterNames.LastUpdated } }:
+                    errorMessages = Array.Empty<string>();
+                    return true;
+                case { Count: 1 }:
+                    (SearchParameterInfo searchParameter, SortOrder sortOrder) parameter = sorting[0];
+
+                    if (parameter.searchParameter.SortStatus == SortParameterStatus.Enabled ||
+                        (parameter.searchParameter.SortStatus == SortParameterStatus.Supported && _contextAccessor.RequestContext?.RequestHeaders.TryGetValue(KnownHeaders.PartiallyIndexedParamsHeaderName, out StringValues _) == true))
+                    {
+                        errorMessages = Array.Empty<string>();
+                        return true;
+                    }
+
+                    // BUGCJH:  MongoDbSortingValidator.cs(51,116,51,125): error CS0122: 'Resources' is inaccessible due to its protection level
+                    // Not sure why this is happening, need to look
+                    // errorMessages = new[] { string.Format(CultureInfo.InvariantCulture, Microsoft.Health.Fhir.Core.Resources.SearchSortParameterNotSupported, parameter.searchParameter.Code) };
+                    errorMessages = new[] { "SearchSortParameterNotSupported" };
+                    return false;
+                default:
+                    // BUGCJH: see above
+                    // errorMessages = new[] { Microsoft.Health.Fhir.Core.Resources.MultiSortParameterNotSupported };
+                    errorMessages = new[] { "MultiSortParameterNotSupported" };
+                    return false;
+            }
         }
     }
 }

@@ -83,6 +83,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             var documents = await _dataStoreConfiguration
                 .GetCollection()
                 .Find(filter)
+                .Limit(searchOptions.MaxItemCount)
                 .ToListAsync(cancellationToken);
 
             List<SearchResultEntry> resultEntries = [];

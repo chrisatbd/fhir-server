@@ -20,8 +20,20 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
             string val = Newtonsoft.Json.JsonConvert.SerializeObject(entry.Value);
 
-            // create the default which will fall through for any SearchParamaterType that is not defined.
             BsonDocument valueDocument = BsonSerializer.Deserialize<BsonDocument>(val);
+
+            /*
+            Complete list, [x] indicates handled
+            Number
+            Date [x]
+            String
+            Token
+            Reference
+            Quantity [x]
+            Uri
+            Composite,
+            Special
+            */
 
             if (entry.SearchParameter.Type == ValueSets.SearchParamType.Date)
             {
@@ -30,6 +42,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 // NOTECJH:  For reference:
                 // The Cosmos implementation does not have IsValidAsCompositeComponent, IsMin, or IsMax
                 // The SQL Implementaion does
+                // some more digging at some point
                 valueDocument =
                 [
                     new BsonElement(SearchValueConstants.DateTimeStartName, new BsonDateTime(dtsv.Start.DateTime)),
@@ -89,6 +102,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             searchParams.Remove("Description");
             searchParams.Remove("TargetResourceTypes");
             searchParams.Remove("BaseResourceTypes");
+            searchParams.Remove("Expression");
 
             return searchParams;
         }

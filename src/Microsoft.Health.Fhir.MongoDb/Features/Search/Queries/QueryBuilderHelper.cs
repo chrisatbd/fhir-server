@@ -9,29 +9,26 @@ using System.Text;
 using System.Threading.Tasks;
 using EnsureThat;
 using Microsoft.Health.Fhir.Core.Features.Search;
-using Microsoft.Health.Fhir.MongoDb.Features.Queries;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 {
     internal sealed class QueryBuilderHelper
     {
-        private readonly QueryParameterManager _queryParameterManager;
-
         public QueryBuilderHelper()
         {
-            _queryParameterManager = new QueryParameterManager();
         }
 
         // returns a BSON document containing the assembled filter specification from the
         // search option expressions
+#pragma warning disable CA1822
         public BsonDocument BuildFilterSpec(SearchOptions searchOptions)
+#pragma warning restore CA1822
         {
             EnsureArg.IsNotNull(searchOptions, nameof(searchOptions));
 
-            var expressionQueryBuilder = new ExpressionQueryBuilder(_queryParameterManager);
+            var expressionQueryBuilder = new ExpressionQueryBuilder();
 
             ExpressionQueryBuilderContext ctx = new ExpressionQueryBuilderContext();
 
@@ -42,7 +39,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 #pragma warning restore CS8620
             }
 
-            return expressionQueryBuilder.GetFilters();
+            return ctx.GetFilters();
         }
     }
 }
