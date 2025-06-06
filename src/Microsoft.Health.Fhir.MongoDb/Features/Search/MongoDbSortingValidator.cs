@@ -48,15 +48,10 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                         return true;
                     }
 
-                    // BUGCJH:  MongoDbSortingValidator.cs(51,116,51,125): error CS0122: 'Resources' is inaccessible due to its protection level
-                    // Not sure why this is happening, need to look
-                    // errorMessages = new[] { string.Format(CultureInfo.InvariantCulture, Microsoft.Health.Fhir.Core.Resources.SearchSortParameterNotSupported, parameter.searchParameter.Code) };
-                    errorMessages = new[] { "SearchSortParameterNotSupported" };
+                    errorMessages = new[] { string.Format(CultureInfo.InvariantCulture, Microsoft.Health.Fhir.Core.Resources.SearchSortParameterNotSupported, parameter.searchParameter.Code) };
                     return false;
                 default:
-                    // BUGCJH: see above
-                    // errorMessages = new[] { Microsoft.Health.Fhir.Core.Resources.MultiSortParameterNotSupported };
-                    errorMessages = new[] { "MultiSortParameterNotSupported" };
+                    errorMessages = new[] { Microsoft.Health.Fhir.Core.Resources.MultiSortParameterNotSupported };
                     return false;
             }
         }

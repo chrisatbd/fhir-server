@@ -52,9 +52,9 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 
         public const string ReferenceBaseUriName = "rb";
 
-        public const string ReferenceResourceTypeName = "rt";
+        public const string ReferenceResourceTypeName = "ResourceType";
 
-        public const string ReferenceResourceIdName = "ri";
+        public const string ReferenceResourceIdName = "ResourceId";
 
         public const string StringName = "String";
 

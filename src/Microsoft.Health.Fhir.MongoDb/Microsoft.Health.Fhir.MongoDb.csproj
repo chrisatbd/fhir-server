@@ -6,6 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Health.Abstractions" />
+    <PackageReference Include="Microsoft.Health.Extensions.BuildTimeCodeGenerator" />
+    <PackageReference Include="Microsoft.Health.Extensions.DependencyInjection" />
+    <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Configs\" />
     <Folder Include="Features\Health\" />
     <Folder Include="Features\Queries\" />
@@ -16,13 +24,20 @@
     <ProjectReference Include="..\Microsoft.Health.Fhir.Api\Microsoft.Health.Fhir.Api.csproj" />
     <ProjectReference Include="..\Microsoft.Health.Fhir.Core\Microsoft.Health.Fhir.Core.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.Health.Abstractions" />
-    <PackageReference Include="Microsoft.Health.Extensions.BuildTimeCodeGenerator" />
-    <PackageReference Include="Microsoft.Health.Extensions.DependencyInjection" />
-    <PackageReference Include="MongoDB.Driver" />
-    <PackageReference Include="Newtonsoft.Json" />
+    <Compile Update="Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
