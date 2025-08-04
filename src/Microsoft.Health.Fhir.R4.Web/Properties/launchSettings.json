@@ -61,14 +61,15 @@
             "environmentVariables": {
                 "TestAuthEnvironment:FilePath": "..//..//testauthenvironment.json",
                 "DataStore": "MongoDb",
-                "TaskHosting:Enabled": "true",
+                "TaskHosting:Enabled": "false",
                 "TaskHosting:MaxRunningTaskCount": "2",
                 "FhirServer:Operations:Export:StorageAccountConnection": "UseDevelopmentStorage=true",
                 "FhirServer:Operations:IntegrationDataStore:StorageAccountConnection": "UseDevelopmentStorage=true",
-                "FhirServer:Operations:Import:Enabled": "true",
+                "FhirServer:Operations:Import:Enabled": "false",
                 "FhirServer:Security:Enabled": "false",
                 "ASPNETCORE_ENVIRONMENT": "development",
-                "MongoDb:ConnectionString": "mongodb://admin:iwas%40%4004@localhost:27017/"
+                "MongoDb:ConnectionString": "mongodb://admin:iwas%40%4004@localhost:27017/",
+                "FhirServer:CoreFeatures:SupportsTransaction": "false"
             },
             "applicationUrl": "https://localhost:8081/"
         }

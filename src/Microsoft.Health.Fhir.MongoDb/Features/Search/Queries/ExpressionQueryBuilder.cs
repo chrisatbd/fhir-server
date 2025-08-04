@@ -55,11 +55,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             { FieldName.Uri, SearchValueConstants.UriName },
         };
 
-        internal ExpressionQueryBuilder()
-        {
-            // _queryAssembler = new QueryAssembler();
-        }
-
 #pragma warning disable CS8603
         public ExpressionQueryBuilderContext InitialContext => new ExpressionQueryBuilderContext();
 #pragma warning restore CS8603
@@ -165,7 +160,6 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                     // It is used for wildcard revinclude queries
                     throw new NotImplementedException();
                 default:
-                    // TODOCJH:  Review NotExpression notExpression expressions as expressed in Cosmos
                     AppendFilter(expression, context);
                     break;
             }
@@ -178,6 +172,8 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
             SearchParameterExpression expression,
             ExpressionQueryBuilderContext context)
         {
+            // CJH: We need to look at the expression.Parameter.Type ?
+
             context.Assembler.StartNewFilter();
 
             if (expression.Expression != null)
@@ -190,7 +186,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
                 expression.Expression.AcceptVisitor(this, context);
             }
 
-            context.Assembler.PushFilter();
+            context.Assembler.CompleteFilter();
         }
 
         // GetFieldName
@@ -285,7 +281,7 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search.Queries
 
         public object VisitInclude(IncludeExpression expression, ExpressionQueryBuilderContext context)
         {
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Include expression should have been removed before reaching {nameof(ExpressionQueryBuilder)}.");
         }
 
         public object VisitMissingField(MissingFieldExpression expression, ExpressionQueryBuilderContext context)

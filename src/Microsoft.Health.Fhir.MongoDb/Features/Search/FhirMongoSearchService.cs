@@ -26,8 +26,7 @@ using Microsoft.Health.Fhir.MongoDb.Features.Storage;
 using Microsoft.Health.Fhir.ValueSets;
 using MongoDB.Bson;
 using MongoDB.Driver;
-
-// using SemVer;
+using MongoDB.Driver.Search;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Search
 {
@@ -69,16 +68,45 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             throw new NotImplementedException();
         }
 
-        // this is the Search Implementation entrypoint
+        // SearchImpl entrypoint
         private async Task<SearchResult> SearchImpl(SearchOptions searchOptions, CancellationToken cancellationToken)
         {
+#if SEARCH_INCLUDE_FUNCTIONALITY
+            // TODOCJH:  This is using the Cosmos Implementation as a guide.
+            // validate !
+            // we're going to mutate searchOptions, so clone it first so the caller of this method does not see the changes.
+            searchOptions = searchOptions.Clone();
+
+            // Starting with the Cosmos approach first to see where it takes us.
+            bool hasIncludeOrRevIncludeExpressions = searchOptions.Expression.ExtractIncludeAndChainedExpressions(
+                out Expression expressionWithoutIncludes,
+                out IReadOnlyList<IncludeExpression> includeExpressions,
+                out IReadOnlyList<IncludeExpression> revIncludeExpressions,
+                out IReadOnlyList<ChainedExpression> chainedExpressions);
+
+            if (hasIncludeOrRevIncludeExpressions)
+            {
+                searchOptions.Expression = expressionWithoutIncludes;
+
+                if (includeExpressions.Any(e => e.Iterate) ||
+                    revIncludeExpressions.Any(e => e.Iterate))
+                {
+                    _logger.LogWarning("Bad Request (IncludeIterateNotSupported)");
+                    throw new BadRequestException(Resources.IncludeIterateNotSupported);
+                }
+            }
+
+            if (hasIncludeOrRevIncludeExpressions && chainedExpressions.Count > 0)
+            {
+                _logger.LogWarning("Bad Request (ChainedExpressions)");
+                throw new BadRequestException("Chained Expressions Not Supported");
+            }
+#endif
             var filter = _queryBuilder.BuildFilterSpec(searchOptions);
 
             _logger.LogDebug(filter.ToString());
 
-            // TODOCJH:  Is this a candidate for yield ? we are getting list of documents,
-            // then making a list of search entries
-            // then returning.
+            // TODOCJH:  Is this a candidate for yield ? revisit when we have finished includes
 
             var documents = await _dataStoreConfiguration
                 .GetCollection()
@@ -86,44 +114,51 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 .Limit(searchOptions.MaxItemCount)
                 .ToListAsync(cancellationToken);
 
-            List<SearchResultEntry> resultEntries = [];
+            List<FHIRMongoResourceWrapper> resourceWrappers = [];
 
             foreach (var entry in documents)
             {
-                var version = 1;
-                var isDeleted = false;
-                var isHistory = false;
-                var isRawResourceMetaSet = true;
-
-#pragma warning disable CS8600
-                string rawResource = entry[FieldNameConstants.Resource].ToString();
-#pragma warning restore CS8600
-
-                var rm = new ResourceWrapper(
-                    entry[FieldNameConstants.Resource][FieldNameConstants.Id].ToString(),
-                    version.ToString(CultureInfo.InvariantCulture),
-                    entry[FieldNameConstants.Resource][FieldNameConstants.ResourceType].ToString(),
-                    new RawResource(rawResource, FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
-                    null,
-                    DateTimeOffset.Now,
-                    isDeleted,
-                    searchIndices: null,
-                    compartmentIndices: null,
-                    lastModifiedClaims: null,
-                    searchParameterHash: null)
-                {
-                    IsHistory = isHistory,
-                };
-
-                resultEntries.Add(new SearchResultEntry(rm));
+                var resourceWrapper = FHIRMongoResourceWrapper.FromBsonDocument(entry);
+                resourceWrappers.Add(resourceWrapper);
             }
 
-            return new SearchResult(
-                resultEntries,
+#if SEARCH_INCLUDE_FUNCTIONALITY
+            (IList<ResourceWrapper> includes, bool includesTruncated) = await PerformIncludeQueriesAsync(temporaryResourceWrappers, includeExpressions, revIncludeExpressions, searchOptions.IncludeCount, cancellationToken);
+#endif
+            SearchResult searchResult = CreateSearchResult(
+                searchOptions,
+                resourceWrappers.Select(m => new SearchResultEntry(m)),
                 null,
-                null,
-                new List<Tuple<string, string>>());
+                false);
+
+            return searchResult;
         }
+
+#pragma warning disable CA1822
+        private SearchResult CreateSearchResult(
+            SearchOptions searchOptions,
+            IEnumerable<SearchResultEntry> results,
+            string? continuationToken,
+            bool includesTruncated = false)
+        {
+            /*
+            if (includesTruncated)
+                {
+                    _requestContextAccessor.RequestContext.BundleIssues.Add(
+                        new OperationOutcomeIssue(
+                            OperationOutcomeConstants.IssueSeverity.Warning,
+                            OperationOutcomeConstants.IssueType.Incomplete,
+                            Microsoft.Health.Fhir.Core.Resources.TruncatedIncludeMessage));
+                }
+            */
+
+            return new SearchResult(
+                results,
+                continuationToken,
+                searchOptions.Sort,
+                searchOptions.UnsupportedSearchParams);
+        }
+#pragma warning restore CA1822
 
         public override async Task<SearchResult> SearchAsync(SearchOptions searchOptions, CancellationToken cancellationToken)
         {
@@ -139,5 +174,47 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
             _logger.LogInformation("SearchForReindexInternalAsync");
             throw new NotImplementedException();
         }
+
+#if SEARCH_INCLUDE_FUNCTIONALITY
+#pragma warning disable CA1822
+#pragma warning disable CS1998
+        private async Task<(IList<ResourceWrapper> includes, bool includesTruncated)> PerformIncludeQueriesAsync(
+            List<ResourceWrapper> matches,
+            IReadOnlyCollection<IncludeExpression> includeExpressions,
+            IReadOnlyCollection<IncludeExpression> revIncludeExpressions,
+            int maxIncludeCount,
+            CancellationToken cancellationToken)
+        {
+            // if no matches or no include/revinclude then just return empty
+            if (matches.Count == 0 ||
+                (includeExpressions.Count == 0 && revIncludeExpressions.Count == 0))
+            {
+                return (Array.Empty<ResourceWrapper>(), false);
+            }
+
+            var includes = new List<ResourceWrapper>();
+
+            var matchIds = matches
+                .Select(x => new ResourceKey(x.ResourceTypeName, x.ResourceId))
+                .ToHashSet();
+
+            if (includeExpressions.Count > 0)
+            {
+                // fetch in the resources to include from _include parameters.
+
+                // var referencesToInclude = matches
+                //    .SelectMany(m => m.ReferencesToInclude)
+                //    .Where(r => r.ResourceTypeName != null) // exclude untyped references to align with the current SQL behavior
+                //    .Select(x => new ResourceKey(x.ResourceTypeName, x.ResourceId))
+                //    .Distinct()
+                //    .Where(x => !matchIds.Contains(x))
+                //    .ToList();
+            }
+
+            throw new NotImplementedException();
+        }
+#endif
+#pragma warning restore CS1998
+#pragma warning restore CA1822
     }
 }

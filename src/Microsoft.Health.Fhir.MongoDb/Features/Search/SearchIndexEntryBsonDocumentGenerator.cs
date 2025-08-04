@@ -83,6 +83,12 @@ namespace Microsoft.Health.Fhir.MongoDb.Features.Search
                 valueDocument = quantityDocument;
             }
 
+            if (entry.SearchParameter.Type == ValueSets.SearchParamType.Composite)
+            {
+                // BUGCJH
+                // entry.SearchParameter.Type
+            }
+
             var ret = new BsonDocument
             {
                 { "SearchParameter", GetSearchParameterDocument(entry) },

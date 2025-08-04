@@ -4,14 +4,71 @@
 // -------------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using EnsureThat;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
+using Microsoft.Health.Fhir.Core.Features.Search;
+using Microsoft.Health.Fhir.Core.Models;
+using MongoDB.Bson;
 
 namespace Microsoft.Health.Fhir.MongoDb.Features.Storage
 {
-    public sealed class FHIRMongoResourceWrapper : ResourceWrapper
+    internal sealed class FHIRMongoResourceWrapper : ResourceWrapper
     {
+        public FHIRMongoResourceWrapper(
+            string resourceId,
+            string versionId,
+            string resourceTypeName,
+            RawResource rawResource,
+            ResourceRequest request,
+            DateTimeOffset lastModified,
+            bool deleted,
+            bool history,
+            IReadOnlyCollection<SearchIndexEntry> searchIndices,
+            CompartmentIndices compartmentIndices,
+            IReadOnlyCollection<KeyValuePair<string, string>> lastModifiedClaims,
+            string? searchParameterHash = null)
+            : base(resourceId, versionId, resourceTypeName, rawResource, request, lastModified, deleted, searchIndices, compartmentIndices, lastModifiedClaims, searchParameterHash)
+        {
+            IsHistory = history;
+
+            // UpdateSortIndex(searchIndices);
+        }
+
+        public static FHIRMongoResourceWrapper FromBsonDocument(BsonDocument entry)
+        {
+            var version = 1;
+            var isHistory = false;
+            var isRawResourceMetaSet = true;
+
+            var isDeleted = entry[FieldNameConstants.IsDeleted].ToBoolean();
+
+#pragma warning disable CS8600
+            string rawResource = entry[FieldNameConstants.Resource].ToString();
+#pragma warning restore CS8600
+
+#pragma warning disable CS8604
+#pragma warning disable CS8625
+            var resourceWrapper = new FHIRMongoResourceWrapper(
+                entry[FieldNameConstants.Resource][FieldNameConstants.Id].ToString(),
+                version.ToString(CultureInfo.InvariantCulture),
+                entry[FieldNameConstants.Resource][FieldNameConstants.ResourceType].ToString(),
+                new RawResource(rawResource, FhirResourceFormat.Json, isMetaSet: isRawResourceMetaSet),
+                null,
+                DateTimeOffset.Now,
+                isDeleted,
+                isHistory,
+                searchIndices: null,
+                compartmentIndices: null,
+                lastModifiedClaims: null,
+                searchParameterHash: null);
+#pragma warning restore CS8625
+#pragma warning restore CS8604
+
+            return resourceWrapper;
+        }
     }
 }
