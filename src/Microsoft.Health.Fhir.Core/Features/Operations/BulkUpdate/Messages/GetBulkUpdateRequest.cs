@@ -3,22 +3,17 @@
 // Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 // -------------------------------------------------------------------------------------------------
 
-using System.Collections.Generic;
+using MediatR;
 
-namespace Microsoft.Health.Fhir.Core.Features.Storage
+namespace Microsoft.Health.Fhir.Core.Features.Operations.BulkUpdate.Messages
 {
-    public interface IMemoryCache<T>
+    public class GetBulkUpdateRequest : IRequest<GetBulkUpdateResponse>
     {
-        long CacheMemoryLimit { get; }
+        public GetBulkUpdateRequest(long jobId)
+        {
+            JobId = jobId;
+        }
 
-        T GetOrAdd(string key, T value);
-
-        bool TryAdd(string key, T value);
-
-        T Get(string key);
-
-        bool TryGet(string key, out T value);
-
-        bool Remove(string key);
+        public long JobId { get; }
     }
 }
